@@ -2,6 +2,12 @@ import { useMemo } from 'react';
 
 export type ElementCategory = 'نار' | 'تراب' | 'هواء' | 'ماء';
 
+export interface ZodiacSign {
+  ar: string;
+  en: string;
+  index: number;
+}
+
 export interface AnalysisResult {
   fullName: string;
   motherName: string;
@@ -9,20 +15,21 @@ export interface AnalysisResult {
   reducedNumber: number;
   spiritualNumber: number;
   element: ElementCategory;
+  zodiac?: ZodiacSign;
   letterBreakdown: { letter: string; value: number }[];
 }
 
 const abjadMap: Record<string, number> = {
-  ا: 1,
+  ا: 1, أ: 1, إ: 1, آ: 1,
   ب: 2,
   ج: 3,
   د: 4,
-  ه: 5,
+  ه: 5, ة: 5,
   و: 6,
   ز: 7,
   ح: 8,
   ط: 9,
-  ي: 10,
+  ي: 10, ى: 10,
   ك: 20,
   ل: 30,
   م: 40,
@@ -49,13 +56,30 @@ function calculateAbjad(text: string): number {
 
 function reduceNumber(n: number): number {
   if (n === 0) return 0;
-  let result = n;
-  while (result > 9) {
-    result = String(result)
-      .split('')
-      .reduce((sum, d) => sum + parseInt(d, 10), 0);
-  }
-  return result;
+  const r = n % 9;
+  return r === 0 ? 9 : r;
+}
+
+const zodiacSigns: ZodiacSign[] = [
+  { ar: 'حَمَل', en: 'Aries', index: 1 },
+  { ar: 'ثَوْر', en: 'Taurus', index: 2 },
+  { ar: 'جَوْزَاء', en: 'Gemini', index: 3 },
+  { ar: 'سَرَطَان', en: 'Cancer', index: 4 },
+  { ar: 'أَسَد', en: 'Leo', index: 5 },
+  { ar: 'سُنْبُلَة', en: 'Virgo', index: 6 },
+  { ar: 'مِيزَان', en: 'Libra', index: 7 },
+  { ar: 'عَقْرَب', en: 'Scorpio', index: 8 },
+  { ar: 'قَوْس', en: 'Sagittarius', index: 9 },
+  { ar: 'جَدْي', en: 'Capricorn', index: 10 },
+  { ar: 'دَلْو', en: 'Aquarius', index: 11 },
+  { ar: 'حُوت', en: 'Pisces', index: 12 },
+];
+
+function getZodiac(total: number): ZodiacSign {
+  if (total === 0) return zodiacSigns[0];
+  const remainder = total % 12;
+  const index = remainder === 0 ? 11 : remainder - 1;
+  return zodiacSigns[index];
 }
 
 function getElement(total: number): ElementCategory {
@@ -67,7 +91,7 @@ function getElement(total: number): ElementCategory {
 }
 
 function analyzeName(name: string): { total: number; breakdown: { letter: string; value: number }[] } {
-  const cleaned = name.replace(/[\s\-]/g, '');
+  const cleaned = name.replace(/[\s\-]/g, '').replace(/[\u064B-\u065F\u0670]/g, '');
   const breakdown: { letter: string; value: number }[] = [];
 
   for (const char of cleaned) {
@@ -110,6 +134,7 @@ export function useNameAnalysis(fullName: string, motherName: string): AnalysisR
       reducedNumber: reduced,
       spiritualNumber,
       element: getElement(combinedTotal),
+      ...(motherName.trim() ? { zodiac: getZodiac(combinedTotal) } : {}),
       letterBreakdown: combinedBreakdown,
     };
   }, [fullName, motherName]);
