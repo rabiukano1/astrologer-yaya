@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { searchQuranByAbjad, type VerseMatch } from '@/hooks/use-quran-search';
 import { loadAllVerses, searchQuranByText } from '@/hooks/use-quran-text-search';
-import { searchNamesByValue, type NameMatch } from '@/hooks/use-names-of-allah';
+import { searchNamesByValue, searchNamesByCombination, type NameMatch, type NameCombo } from '@/hooks/use-names-of-allah';
+import { Card } from '@/components/ui/card';
+import { SectionHeader } from '@/components/ui/section-header';
 
 const isRTL = I18nManager.isRTL;
 
@@ -23,12 +25,13 @@ type SearchMode = 'value' | 'ayat';
 
 export default function SearchScreen() {
   const theme = useTheme();
-  const isDark = theme.background === Colors.dark.background;
+  const isDark = theme.background === '#0A1628';
 
   const [mode, setMode] = useState<SearchMode>('value');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<VerseMatch[]>([]);
   const [namesResults, setNamesResults] = useState<NameMatch[]>([]);
+  const [nameComboResult, setNameComboResult] = useState<NameCombo | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,11 +40,13 @@ export default function SearchScreen() {
     if (!q.trim()) {
       setResults([]);
       setNamesResults([]);
+      setNameComboResult(null);
       setSearched(false);
       return;
     }
     setResults([]);
     setNamesResults([]);
+    setNameComboResult(null);
     setLoading(true);
     setSearched(true);
     try {
@@ -53,12 +58,17 @@ export default function SearchScreen() {
         ]);
         setResults(verses);
         setNamesResults(names);
+        if (verses.length === 0 && names.length === 0) {
+          const combo = await searchNamesByCombination(val);
+          setNameComboResult(combo);
+        }
       } else {
         setResults(await searchQuranByText(q.trim()));
       }
     } catch {
       setResults([]);
       setNamesResults([]);
+      setNameComboResult(null);
     } finally {
       setLoading(false);
     }
@@ -85,157 +95,133 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.topGradient, { backgroundColor: theme.background, borderBottomColor: isDark ? 'rgba(75,184,250,0.08)' : 'rgba(0,0,0,0.06)' }]}>
-        <SafeAreaView style={styles.safeAreaTop}>
-          <View style={styles.ornamentRow}>
-            <View style={styles.ornamentLine} />
-            <Text style={styles.ornamentSymbol}>﴿</Text>
-            <View style={styles.ornamentLine} />
-          </View>
-          <Text style={[styles.screenTitle, { color: theme.text }]}>الْبَحْثُ فِي الْقُرْآنِ</Text>
-          <View style={styles.titleUnderline} />
-          <Text style={[styles.screenSubtitle, { color: theme.textSecondary }]}>Quran Search</Text>
-        </SafeAreaView>
-      </View>
+      <View style={[styles.topAccent, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
+
+      <SafeAreaView style={styles.headerContainer} edges={['top']}>
+        <SectionHeader
+          titleAr="الْبَحْثُ فِي الْقُرْآنِ"
+          titleEn="QURAN SEARCH"
+          style={styles.header}
+          compact
+        />
+      </SafeAreaView>
 
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.contentWrapper}>
-          <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-            <View style={styles.segmentedControl}>
-              <TouchableOpacity
-                style={[
-                  styles.segment,
-                  mode === 'value' && [styles.segmentActive, { backgroundColor: Colors.primary, borderColor: Colors.accent }],
-                ]}
-                onPress={() => { setMode('value'); setResults([]); setSearched(false); }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.segmentText, mode === 'value' && styles.segmentTextActive]}>
-                  بِالْقِيمَة
-                </Text>
-                <Text style={[styles.segmentSub, mode === 'value' && styles.segmentSubActive]}>
-                  By Value
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.segment,
-                  mode === 'ayat' && [styles.segmentActive, { backgroundColor: Colors.primary, borderColor: Colors.accent }],
-                ]}
-                onPress={() => { setMode('ayat'); setResults([]); setSearched(false); }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.segmentText, mode === 'ayat' && styles.segmentTextActive]}>
-                  بِالْآيَة
-                </Text>
-                <Text style={[styles.segmentSub, mode === 'ayat' && styles.segmentSubActive]}>
-                  By Ayat
-                </Text>
-              </TouchableOpacity>
-            </View>
+        <Card variant="glass" style={styles.searchCard}>
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              style={[
+                styles.segment,
+                mode === 'value' && { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)', borderColor: Colors.gold },
+              ]}
+              onPress={() => { setMode('value'); setResults([]); setSearched(false); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.segmentText, { color: theme.text }, mode === 'value' && styles.segmentTextActive]}>بِالْقِيمَة</Text>
+              <Text style={[styles.segmentSub, mode === 'value' && { opacity: 0.5 }]}>VALUE</Text>
+            </TouchableOpacity>
 
-            <View style={styles.inputRow}>
-              <TextInput
-                style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', color: theme.text }]}
-                value={query}
-                onChangeText={setQuery}
-                placeholder={mode === 'value' ? 'مَثَلًا: ١٤' : 'مَثَلًا: ا ب ت'}
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)'}
-                textAlign={isRTL ? 'right' : 'left'}
-                keyboardType={mode === 'value' ? 'number-pad' : 'default'}
-                autoCorrect={false}
-                returnKeyType="search"
-                onSubmitEditing={() => runSearch(query, mode)}
-              />
-              <TouchableOpacity
-                style={[styles.searchButton, { backgroundColor: Colors.gold }]}
-                onPress={() => runSearch(query, mode)}
-                activeOpacity={0.8}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color={Colors.darkGreen} />
-                ) : (
-                  <Text style={styles.searchButtonText}>﴾ بَحْث ﴿</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.segment,
+                mode === 'ayat' && { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)', borderColor: Colors.gold },
+              ]}
+              onPress={() => { setMode('ayat'); setResults([]); setSearched(false); }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.segmentText, { color: theme.text }, mode === 'ayat' && styles.segmentTextActive]}>بِالْآيَة</Text>
+              <Text style={[styles.segmentSub, mode === 'ayat' && { opacity: 0.5 }]}>TEXT</Text>
+            </TouchableOpacity>
           </View>
 
-          {loading && (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color={Colors.accent} />
-              <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جَارِي الْبَحْثُ ...</Text>
-              <Text style={[styles.loadingTextEn, { color: theme.textSecondary }]}>Searching...</Text>
-            </View>
-          )}
+          <TextInput
+            style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text }]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={mode === 'value' ? "مَثَلًا: ١١٠" : "مَثَلًا: رَحْمَة"}
+            placeholderTextColor={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'}
+            textAlign={isRTL ? 'right' : 'left'}
+            keyboardType={mode === 'value' ? 'number-pad' : 'default'}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+        </Card>
 
-          {!loading && searched && results.length === 0 && namesResults.length === 0 && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>﴿</Text>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لَا نَتَائِج</Text>
-              <Text style={[styles.emptyTextEn, { color: theme.textSecondary }]}>No results found</Text>
-            </View>
-          )}
+        {loading && (
+          <View style={styles.statusState}>
+            <ActivityIndicator size="small" color={Colors.accent} />
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>جَارِي الْبَحْثُ ...</Text>
+          </View>
+        )}
 
-          {!loading && mode === 'value' && namesResults.length > 0 && (
-            <View style={[styles.resultsCard, { backgroundColor: theme.backgroundElement }]}>
-              <View style={styles.resultsHeader}>
-                <Text style={[styles.resultsCount, { color: Colors.gold }]}>
-                  أَسْمَاءُ اللَّهِ
-                </Text>
-                <Text style={[styles.resultsCountEn, { color: theme.textSecondary }]}>
-                  {namesResults.length} Name{namesResults.length !== 1 ? 's' : ''} of Allah
-                </Text>
-              </View>
+        {!loading && searched && results.length === 0 && namesResults.length === 0 && !nameComboResult && (
+          <View style={styles.statusState}>
+            <Text style={styles.statusIcon}>﴿</Text>
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>لَا نَتَائِج</Text>
+            <Text style={styles.statusSub}>No results</Text>
+          </View>
+        )}
+
+        {!loading && mode === 'value' && namesResults.length > 0 && (
+          <Card variant="elevated" style={styles.resultsCard}>
+            <Text style={styles.resultsTitleAr}>أَسْمَاءُ اللَّهِ الْحُسْنَى</Text>
+            <Text style={styles.resultsTitleEn}>NAMES OF ALLAH • {namesResults.length}</Text>
+            <View style={styles.namesGrid}>
               {namesResults.map((n, i) => (
-                <View
-                  key={n.name}
-                  style={[
-                    styles.nameRow,
-                    i < namesResults.length - 1 && { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' },
-                  ]}
-                >
+                <View key={n.name} style={[styles.nameItem, i > 0 && styles.itemBorder]}>
                   <Text style={[styles.nameText, { color: theme.text }]}>{n.name}</Text>
-                  <Text style={[styles.verseRef, { color: theme.textSecondary }]}>
-                    الْقِيمَة: {n.totalValue.toLocaleString()}
-                  </Text>
+                  <View style={styles.nameValueRow}>
+                    <Text style={styles.nameValueLabel}>الْقِيمَة</Text>
+                    <Text style={styles.nameValue}>{n.totalValue}</Text>
+                  </View>
                 </View>
               ))}
             </View>
-          )}
+          </Card>
+        )}
 
-          {!loading && results.length > 0 && (
-            <View style={[styles.resultsCard, { backgroundColor: theme.backgroundElement }]}>
-              <View style={styles.resultsHeader}>
-                <Text style={[styles.resultsCount, { color: Colors.accent }]}>
-                  {results.length} {mode === 'value' ? 'آيَة' : 'نَتِيجَة'}
-                </Text>
-                <Text style={[styles.resultsCountEn, { color: theme.textSecondary }]}>
-                  {results.length} result{results.length !== 1 ? 's' : ''} found
-                </Text>
+        {!loading && nameComboResult && (
+          <Card variant="elevated" style={styles.resultsCard}>
+            <Text style={styles.resultsTitleAr}>أَسْمَاءُ اللَّهِ الْحُسْنَى</Text>
+            <Text style={styles.resultsTitleEn}>COMBINATION • {nameComboResult.count} NAMES</Text>
+            <View style={styles.namesGrid}>
+              {nameComboResult.names.map((name, i) => (
+                <View key={name} style={[styles.nameItem, i > 0 && styles.itemBorder]}>
+                  <Text style={[styles.nameText, { color: theme.text }]}>{name}</Text>
+                  {i < nameComboResult.names.length - 1 && (
+                    <Text style={[styles.plusSign, { color: Colors.gold }]}>+</Text>
+                  )}
+                </View>
+              ))}
+              <View style={[styles.nameItem, styles.itemBorder]}>
+                <Text style={[styles.nameText, { color: Colors.gold }]}>المجموع</Text>
+                <Text style={[styles.nameValue, { color: Colors.gold, fontSize: 20 }]}>{nameComboResult.totalValue}</Text>
               </View>
+            </View>
+          </Card>
+        )}
+
+        {!loading && results.length > 0 && (
+          <Card variant="glass" style={styles.resultsCard}>
+            <Text style={styles.resultsTitleAr}>الْآيَاتُ الْقُرْآنِيَّة</Text>
+            <Text style={styles.resultsTitleEn}>VERSES • {results.length}</Text>
+            <View style={styles.versesList}>
               {results.map((v, i) => (
-                <View
-                  key={`${v.surah}-${v.verse}`}
-                  style={[
-                    styles.verseRow,
-                    i < results.length - 1 && { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' },
-                  ]}
-                >
-                  <Text style={[styles.verseRef, { color: theme.textSecondary }]}>
-                    {v.surahName} #{v.surah}:{v.verse}
-                  </Text>
+                <View key={`${v.surah}-${v.verse}`} style={[styles.verseItem, i > 0 && styles.itemBorder]}>
                   <Text style={[styles.verseText, { color: theme.text }]}>{v.text}</Text>
+                  <Text style={[styles.verseRef, { color: Colors.accent }]}>
+                    {v.surahName} • {v.surah}:{v.verse}
+                  </Text>
                 </View>
               ))}
             </View>
-          )}
-        </View>
+          </Card>
+        )}
       </ScrollView>
     </View>
   );
@@ -245,222 +231,152 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  topGradient: {
-    paddingBottom: Spacing.three,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    borderBottomWidth: 1,
+  topAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
   },
-  safeAreaTop: {
-    alignItems: 'center',
-    paddingTop: Spacing.two,
-    paddingHorizontal: Spacing.four,
+  headerContainer: {
+    paddingTop: Spacing.three,
   },
-  ornamentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  ornamentLine: {
-    width: 24,
-    height: 1,
-    backgroundColor: Colors.accent,
-    opacity: 0.25,
-  },
-  ornamentSymbol: {
-    fontSize: 20,
-    color: Colors.lightBlue,
-    opacity: 0.35,
-  },
-  screenTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  titleUnderline: {
-    width: 28,
-    height: 2,
-    backgroundColor: Colors.accent,
-    borderRadius: 1,
-    marginTop: Spacing.two,
-    alignSelf: 'center',
-  },
-  screenSubtitle: {
-    fontSize: 10,
-    textAlign: 'center',
-    letterSpacing: 3,
-    marginTop: Spacing.one,
+  header: {
+    marginBottom: Spacing.one,
   },
   scrollArea: {
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.three,
     paddingBottom: Spacing.six,
-  },
-  contentWrapper: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
     gap: Spacing.three,
-    maxWidth: MaxContentWidth + Spacing.five * 2,
-    alignSelf: 'center',
-    width: '100%',
   },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: Spacing.four,
-    borderWidth: 1,
-    borderColor: 'rgba(75,184,250,0.12)',
+  searchCard: {
+    gap: Spacing.three,
   },
   segmentedControl: {
     flexDirection: 'row',
     gap: Spacing.two,
-    marginBottom: Spacing.four,
   },
   segment: {
     flex: 1,
     borderRadius: 14,
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(75,184,250,0.1)',
-  },
-  segmentActive: {
-    borderWidth: 1,
+    borderColor: 'transparent',
   },
   segmentText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.lightBlue,
-    opacity: 0.6,
+    fontWeight: '700',
+    opacity: 0.45,
   },
   segmentTextActive: {
-    color: Colors.white,
     opacity: 1,
   },
   segmentSub: {
     fontSize: 8,
-    color: Colors.lightBlue,
-    opacity: 0.4,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
+    opacity: 0.25,
+    color: Colors.accent,
     marginTop: 2,
   },
-  segmentSubActive: {
-    color: Colors.white,
-    opacity: 0.7,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    alignItems: 'center',
-  },
   input: {
-    flex: 1,
     borderRadius: 14,
-    padding: Spacing.three,
-    fontSize: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(75,184,250,0.1)',
-  },
-  searchButton: {
-    borderRadius: 14,
-    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 80,
+    paddingVertical: Spacing.three,
+    fontSize: 18,
+    fontWeight: '600',
   },
-  searchButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.darkGreen,
-  },
-  loadingState: {
+  statusState: {
     alignItems: 'center',
-    paddingVertical: Spacing.six,
+    paddingVertical: Spacing.five,
     gap: Spacing.two,
   },
-  loadingText: {
-    fontSize: 14,
-    opacity: 0.3,
-  },
-  loadingTextEn: {
-    fontSize: 9,
-    opacity: 0.2,
-    letterSpacing: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.six,
-    gap: Spacing.two,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    color: Colors.lightBlue,
+  statusIcon: {
+    fontSize: 32,
+    color: Colors.gold,
     opacity: 0.15,
   },
-  emptyText: {
-    fontSize: 14,
-    opacity: 0.3,
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
-  emptyTextEn: {
+  statusSub: {
     fontSize: 9,
-    opacity: 0.2,
+    opacity: 0.3,
     letterSpacing: 1,
   },
   resultsCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
     padding: Spacing.four,
-    borderWidth: 1,
-    borderColor: 'rgba(75,184,250,0.15)',
   },
-  resultsHeader: {
-    alignItems: 'center',
-    marginBottom: Spacing.three,
-  },
-  resultsCount: {
+  resultsTitleAr: {
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 1,
+    color: Colors.gold,
+    textAlign: isRTL ? 'right' : 'left',
   },
-  resultsCountEn: {
+  resultsTitleEn: {
     fontSize: 8,
+    letterSpacing: 1.5,
     opacity: 0.4,
-    letterSpacing: 1,
-    marginTop: 2,
+    marginBottom: Spacing.three,
+    textAlign: isRTL ? 'right' : 'left',
   },
-  nameRow: {
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
+  namesGrid: {
+    gap: Spacing.two,
+  },
+  nameItem: {
+    flexDirection: isRTL ? 'row-reverse' : 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
   },
   nameText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    textAlign: 'center',
-    writingDirection: 'rtl',
   },
-  verseRow: {
-    paddingVertical: Spacing.two,
-    gap: Spacing.one,
+  nameValueRow: {
+    alignItems: 'center',
+    gap: 1,
   },
-  verseRef: {
-    fontSize: 9,
-    fontWeight: '600',
-    opacity: 0.5,
+  nameValueLabel: {
+    fontSize: 7,
     letterSpacing: 0.5,
+    opacity: 0.35,
+    color: Colors.gold,
+  },
+  nameValue: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.gold,
+  },
+  plusSign: {
+    fontSize: 18,
+    fontWeight: '700',
+    opacity: 0.5,
+  },
+  versesList: {
+    gap: Spacing.four,
+  },
+  verseItem: {
+    gap: Spacing.two,
+  },
+  itemBorder: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.04)',
+    paddingTop: Spacing.three,
   },
   verseText: {
-    fontSize: 15,
+    fontSize: 16,
+    lineHeight: 26,
     textAlign: 'right',
-    lineHeight: 24,
-    writingDirection: 'rtl',
+  },
+  verseRef: {
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

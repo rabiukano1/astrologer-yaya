@@ -27,7 +27,7 @@ function RootContent() {
     <>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? '#1B4332' : '#FFF8E7'}
+        backgroundColor={theme.background}
       />
       <AppTabs />
     </>

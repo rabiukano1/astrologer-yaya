@@ -11,80 +11,112 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useThemeContext, type ThemeMode } from '@/hooks/theme-context';
+import { Card } from '@/components/ui/card';
+import { SectionHeader } from '@/components/ui/section-header';
 
 const isRTL = I18nManager.isRTL;
 
-const themeOptions: { mode: ThemeMode; label: string; labelAr: string }[] = [
-  { mode: 'system', label: 'System', labelAr: 'النِّظَام' },
-  { mode: 'light', label: 'Light', labelAr: 'فَاتِح' },
-  { mode: 'dark', label: 'Dark', labelAr: 'دَاكِن' },
+const themeOptions: { mode: ThemeMode; label: string; labelAr: string; icon: string }[] = [
+  { mode: 'system', label: 'System', labelAr: 'النِّظَام', icon: '◉' },
+  { mode: 'light', label: 'Light', labelAr: 'فَاتِح', icon: '○' },
+  { mode: 'dark', label: 'Dark', labelAr: 'دَاكِن', icon: '●' },
 ];
 
 export default function SettingsScreen() {
   const theme = useTheme();
-  const { userTheme, setUserTheme } = useThemeContext();
+  const isDark = theme.background === '#0A1628';
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={styles.topGradient}>
-        <SafeAreaView style={styles.safeAreaTop}>
-          <View style={styles.ornamentRow}>
-            <View style={styles.ornamentLine} />
-            <Text style={styles.ornamentSymbol}>﴿</Text>
-            <View style={styles.ornamentLine} />
-          </View>
-          <Text style={styles.screenTitle}>الإِعْدَادَات</Text>
-          <View style={styles.titleUnderline} />
-          <Text style={styles.screenSubtitle}>Settings</Text>
-        </SafeAreaView>
-      </View>
+      <View style={[styles.topAccent, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
+
+      <SafeAreaView style={styles.headerContainer} edges={['top']}>
+        <SectionHeader
+          titleAr="الإِعْدَادَات"
+          titleEn="SETTINGS"
+          style={styles.header}
+          compact
+        />
+      </SafeAreaView>
 
       <ScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-          <Text style={styles.cardTitle}>المَظْهَر</Text>
-          <Text style={styles.cardSubtitle}>APPEARANCE</Text>
+        <Card variant="glass" style={styles.card}>
+          <Text style={styles.cardTitleAr}>المَظْهَر</Text>
+          <Text style={styles.cardTitleEn}>APPEARANCE</Text>
 
           <View style={styles.optionsContainer}>
-            {themeOptions.map((option) => {
-              const isActive = userTheme === option.mode;
-              return (
-                <TouchableOpacity
-                  key={option.mode}
-                  style={[
-                    styles.optionRow,
-                    isActive && { backgroundColor: Colors.primary, borderColor: Colors.accent },
-                  ]}
-                  onPress={() => setUserTheme(option.mode)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.optionContent}>
-                    <Text style={[styles.optionLabel, isActive && { color: Colors.white }]}>
-                      {option.labelAr}
-                    </Text>
-                    <Text style={[styles.optionLabelEn, isActive && { color: Colors.lightBlue }]}>
-                      {option.label}
-                    </Text>
-                  </View>
-                  {isActive && <Text style={styles.checkMark}>✓</Text>}
-                </TouchableOpacity>
-              );
-            })}
+            <ThemeOption
+              mode="system"
+              labelAr="النِّظَام"
+              label="System"
+              icon="◉"
+            />
+            <ThemeOption
+              mode="light"
+              labelAr="فَاتِح"
+              label="Light"
+              icon="○"
+            />
+            <ThemeOption
+              mode="dark"
+              labelAr="دَاكِن"
+              label="Dark"
+              icon="●"
+            />
           </View>
-        </View>
+        </Card>
 
-        <View style={[styles.infoCard, { backgroundColor: theme.backgroundElement }]}>
-          <Text style={styles.infoText}>
+        <Card variant="solid" style={styles.infoCard}>
+          <Text style={[styles.infoTitle, { color: Colors.gold }]}>﴿</Text>
+          <Text style={[styles.infoText, { color: theme.text }]}>
             اختر الوضع الذي يناسبك. الوضع الداكن مريح للعين في الإضاءة المنخفضة.
           </Text>
-          <Text style={styles.infoTextEn}>
+          <Text style={[styles.infoTextEn, { color: theme.textSecondary }]}>
             Choose the mode that suits you. Dark mode is easier on the eyes in low light.
           </Text>
-        </View>
+        </Card>
       </ScrollView>
     </View>
+  );
+}
+
+function ThemeOption({ mode, labelAr, label, icon }: { mode: ThemeMode; labelAr: string; label: string; icon: string }) {
+  const theme = useTheme();
+  const isDark = theme.background === '#0A1628';
+  const { userTheme, setUserTheme } = useThemeContext();
+  const isActive = userTheme === mode;
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.optionRow,
+        { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)' },
+        isActive && { backgroundColor: Colors.primary },
+      ]}
+      onPress={() => setUserTheme(mode)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.optionIconBox, isActive && { opacity: 1 }]}>
+        <Text style={[styles.optionIcon, !isActive && { opacity: 0.3 }]}>{icon}</Text>
+      </View>
+      <View style={styles.optionContent}>
+        <Text style={[styles.optionLabel, { color: theme.text }, isActive && { color: Colors.white }]}>
+          {labelAr}
+        </Text>
+        <Text style={[styles.optionLabelEn, { color: theme.textSecondary }, isActive && { color: Colors.lightBlue }]}>
+          {label}
+        </Text>
+      </View>
+      {isActive && (
+        <View style={styles.checkCircle}>
+          <Text style={styles.checkMark}>✓</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -92,89 +124,43 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  topGradient: {
-    backgroundColor: 'rgba(13,27,42,0.98)',
-    paddingBottom: Spacing.three,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(75,184,250,0.08)',
+  topAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
   },
-  safeAreaTop: {
-    alignItems: 'center',
-    paddingTop: Spacing.two,
-    paddingHorizontal: Spacing.four,
+  headerContainer: {
+    paddingTop: Spacing.three,
   },
-  ornamentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  ornamentLine: {
-    width: 24,
-    height: 1,
-    backgroundColor: Colors.accent,
-    opacity: 0.25,
-  },
-  ornamentSymbol: {
-    fontSize: 20,
-    color: Colors.lightBlue,
-    opacity: 0.35,
-  },
-  screenTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.white,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  titleUnderline: {
-    width: 28,
-    height: 2,
-    backgroundColor: Colors.accent,
-    borderRadius: 1,
-    marginTop: Spacing.two,
-    alignSelf: 'center',
-  },
-  screenSubtitle: {
-    fontSize: 10,
-    color: Colors.lightBlue,
-    textAlign: 'center',
-    opacity: 0.45,
-    letterSpacing: 1,
-    marginTop: Spacing.one,
+  header: {
+    marginBottom: Spacing.one,
   },
   scrollArea: {
     flex: 1,
   },
   scrollContent: {
-    alignItems: 'center',
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.six,
+    paddingTop: Spacing.three,
     paddingBottom: Spacing.six,
     gap: Spacing.three,
   },
   card: {
-    width: '100%',
-    borderRadius: 20,
     padding: Spacing.four,
-    borderWidth: 1,
-    borderColor: 'rgba(75,184,250,0.12)',
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.white,
+  cardTitleAr: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.gold,
     textAlign: isRTL ? 'right' : 'left',
-    marginBottom: 2,
   },
-  cardSubtitle: {
-    fontSize: 9,
-    color: Colors.lightBlue,
-    letterSpacing: 1,
-    marginBottom: Spacing.four,
+  cardTitleEn: {
+    fontSize: 8,
+    letterSpacing: 1.5,
     opacity: 0.4,
+    marginBottom: Spacing.four,
+    textAlign: isRTL ? 'right' : 'left',
   },
   optionsContainer: {
     gap: Spacing.two,
@@ -182,51 +168,67 @@ const styles = StyleSheet.create({
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.three,
     padding: Spacing.three,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  optionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionIcon: {
+    fontSize: 16,
+    color: Colors.accent,
   },
   optionContent: {
+    flex: 1,
     gap: 2,
   },
   optionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '700',
   },
   optionLabelEn: {
     fontSize: 9,
-    color: Colors.lightBlue,
     opacity: 0.4,
     letterSpacing: 1,
   },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkMark: {
-    fontSize: 18,
+    fontSize: 12,
     color: Colors.white,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   infoCard: {
-    width: '100%',
-    borderRadius: 20,
     padding: Spacing.four,
-    borderWidth: 1,
-    borderColor: 'rgba(75,184,250,0.08)',
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontSize: 20,
+    opacity: 0.3,
+    marginBottom: Spacing.two,
   },
   infoText: {
     fontSize: 13,
-    color: Colors.white,
-    opacity: 0.7,
+    opacity: 0.8,
     lineHeight: 20,
     textAlign: 'center',
     marginBottom: Spacing.two,
   },
   infoTextEn: {
     fontSize: 11,
-    color: Colors.lightBlue,
-    opacity: 0.4,
+    opacity: 0.5,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 17,
   },
 });
