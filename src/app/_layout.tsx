@@ -1,8 +1,8 @@
 import { I18nManager, Platform, StatusBar } from 'react-native';
 import { useEffect, useState } from 'react';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
-import AppTabs from '@/components/app-tabs';
 import { Colors } from '@/constants/theme';
 import { ThemeProvider } from '@/hooks/theme-context';
 import { useTheme } from '@/hooks/use-theme';
@@ -29,7 +29,10 @@ function RootContent() {
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={theme.background}
       />
-      <AppTabs />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="relationship" />
+      </Stack>
     </>
   );
 }

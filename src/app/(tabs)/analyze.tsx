@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,14 +59,23 @@ const numberMeanings: Record<number, { ar: string; en: string }> = {
 };
 
 export default function AnalyzeScreen() {
-  const { fullName, motherName } = useLocalSearchParams<{
-    fullName: string;
+  const { fullName: paramName, motherName: paramMother } = useLocalSearchParams<{
+    fullName?: string;
     motherName?: string;
   }>();
   const router = useRouter();
   const theme = useTheme();
+  const isDark = theme.background === '#0A1628';
+  const [inputName, setInputName] = useState(paramName || '');
+  const [inputMother, setInputMother] = useState('');
+  const [wantsZodiac, setWantsZodiac] = useState<'yes' | 'no' | null>(
+    paramMother ? 'yes' : paramName ? 'no' : null
+  );
 
-  const result = useNameAnalysis(fullName || '', motherName || '');
+  const effectiveName = paramName || inputName.trim();
+  const effectiveMother = paramMother || (wantsZodiac === 'yes' ? inputMother.trim() : '');
+
+  const result = useNameAnalysis(effectiveName, effectiveMother);
   const [verses, setVerses] = useState<Awaited<ReturnType<typeof searchQuranByAbjad>>>([]);
 
   useEffect(() => {
@@ -75,6 +85,109 @@ export default function AnalyzeScreen() {
       setVerses([]);
     }
   }, [result?.zodiac, result?.totalValue]);
+
+  const handleFullAnalysis = () => {
+    router.replace({ pathname: '/analyze', params: { fullName: inputName.trim(), ...(inputMother.trim() && { motherName: inputMother.trim() }) } });
+  };
+
+  if (!paramName) {
+    return (
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
+        <View style={[styles.elementBg, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
+        <SafeAreaView style={styles.headerContainer} edges={['top']}>
+          <SectionHeader titleAr="تَحْلِيلُ الْأَسْمَاءِ" titleEn="NAME ANALYSIS" compact />
+        </SafeAreaView>
+        <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Card variant="glass" style={styles.inputCard}>
+            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>الِاسْمُ الْكَامِل</Text>
+            <TextInput
+              style={[localStyles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text }]}
+              value={inputName}
+              onChangeText={(t) => { setInputName(t); setWantsZodiac(null); setInputMother(''); }}
+              placeholder="مَثَلًا: مَرْيَم"
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'}
+              textAlign={isRTL ? 'right' : 'left'}
+              autoCorrect={false}
+            />
+          </Card>
+
+          {inputName.trim().length > 1 && result && (
+            <View style={{ gap: Spacing.three }}>
+              <Card variant="elevated" style={styles.quickResultCard}>
+                <View style={styles.resultHeader}>
+                  <Text style={[styles.resultName, { color: theme.text }]}>{result.fullName}</Text>
+                  <View style={[styles.resultDivider, { backgroundColor: Colors.gold }]} />
+                </View>
+                <View style={styles.mainMetrics}>
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricValueGold}>{result.totalValue}</Text>
+                    <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الْقِيمَة</Text>
+                    <Text style={styles.metricLabelEn}>TOTAL</Text>
+                  </View>
+                  <View style={styles.metricCard}>
+                    <Text style={[styles.metricValue, { color: Colors.accent }]}>{result.reducedNumber}</Text>
+                    <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الرَّقْمُ</Text>
+                    <Text style={styles.metricLabelEn}>NUMBER</Text>
+                  </View>
+                </View>
+                <View style={[styles.traitsGrid, { justifyContent: 'center' }]}>
+                  {elementTraits[result.element].en.map((trait, i) => (
+                    <View key={i} style={[styles.traitBadge, { backgroundColor: elementMeta[result.element].color }]}>
+                      <Text style={styles.traitText}>{trait}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Card>
+
+              {wantsZodiac === null && (
+                <Card variant="solid" style={{ padding: Spacing.four, alignItems: 'center' }}>
+                  <Text style={[localStyles.promptTitle, { color: theme.text }]}>هَلْ تُرِيدُ مَعْرِفَةَ الطَّالِعِ وَالْبُرْج؟</Text>
+                  <View style={localStyles.promptButtons}>
+                    <Button title="نَعَمْ" variant="primary" onPress={() => setWantsZodiac('yes')} style={{ flex: 1 }} size="sm" />
+                    <Button title="لَا" variant="ghost" onPress={() => setWantsZodiac('no')} style={{ flex: 1 }} size="sm" />
+                  </View>
+                </Card>
+              )}
+
+              {wantsZodiac === 'yes' && (
+                <Card variant="solid" style={{ padding: Spacing.four }}>
+                  <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>اسْمُ الْأُم</Text>
+                  <TextInput
+                    style={[localStyles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text, marginTop: Spacing.two }]}
+                    value={inputMother}
+                    onChangeText={setInputMother}
+                    placeholder="مَثَلًا: حَوَّاء"
+                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)'}
+                    textAlign={isRTL ? 'right' : 'left'}
+                  />
+                  {result.zodiac && (
+                    <View style={[styles.verseItem, { backgroundColor: isDark ? 'rgba(75,184,250,0.08)' : 'rgba(75,184,250,0.06)', padding: Spacing.three, borderRadius: 14, marginTop: Spacing.three, alignItems: 'center' }]}>
+                      <Text style={[styles.heroLabel, { color: Colors.accent }]}>الْبُرْج • ZODIAC</Text>
+                      <Text style={[styles.zodiacAr, { color: theme.text }]}>{result.zodiac.ar}</Text>
+                      <Text style={[styles.zodiacEn, { color: theme.textSecondary }]}>{result.zodiac.en}</Text>
+                    </View>
+                  )}
+                  {verses.length > 0 && (
+                    <View style={{ backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.06)', padding: Spacing.three, borderRadius: 14, marginTop: Spacing.three, alignItems: 'center' }}>
+                      <Text style={[styles.heroLabel, { color: Colors.accent }]}>الْآيَات • VERSES</Text>
+                      <Text style={{ color: Colors.gold, fontSize: 16, fontWeight: '700' }}>{verses.length} matching</Text>
+                    </View>
+                  )}
+                  {inputMother.trim() && result.zodiac && (
+                    <Button title="تَحْلِيلٌ كَامِل" subtitle="FULL ANALYSIS" variant="gold" onPress={handleFullAnalysis} style={{ marginTop: Spacing.three }} />
+                  )}
+                </Card>
+              )}
+
+              {wantsZodiac === 'no' && (
+                <Button title="تَحْلِيلٌ كَامِل" subtitle="FULL ANALYSIS" variant="gold" onPress={handleFullAnalysis} />
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
 
   if (!result) {
     return (
@@ -89,7 +202,6 @@ export default function AnalyzeScreen() {
   }
 
   const el = elementMeta[result.element];
-  const isDark = theme.background === '#0A1628';
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -224,7 +336,7 @@ export default function AnalyzeScreen() {
           title="تَحْلِيلُ اسْمٍ آخَرَ"
           subtitle="ANALYZE ANOTHER NAME"
           variant="gold"
-          onPress={() => router.replace('/')}
+          onPress={() => router.back()}
           style={styles.backButton}
         />
 
@@ -507,6 +619,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     opacity: 0.25,
   },
+  inputCard: {
+    marginBottom: Spacing.three,
+  },
+  quickResultCard: {
+    padding: Spacing.four,
+  },
+  resultHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.three,
+  },
+  resultName: {
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  resultDivider: {
+    width: 36,
+    height: 2.5,
+    borderRadius: 2,
+    marginTop: Spacing.two,
+    opacity: 0.5,
+  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -522,5 +657,27 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 15,
     textAlign: 'center',
+  },
+});
+
+const localStyles = StyleSheet.create({
+  input: {
+    borderRadius: 14,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    fontSize: 20,
+    fontWeight: '500',
+  },
+  promptTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: Spacing.three,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  promptButtons: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    width: '100%',
   },
 });

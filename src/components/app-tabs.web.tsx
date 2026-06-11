@@ -15,7 +15,7 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="index" href="/" asChild>
+          <TabTrigger name="index" href="/(tabs)/index" asChild>
             <TabButton>الرَّئِيسِيَّة</TabButton>
           </TabTrigger>
           <TabTrigger name="analyze" href="/analyze" asChild>
