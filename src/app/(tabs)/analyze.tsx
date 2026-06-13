@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   I18nManager,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,8 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useNameAnalysis, type ElementCategory } from '@/hooks/use-name-analysis';
 import { searchQuranByAbjad } from '@/hooks/use-quran-search';
@@ -58,6 +61,20 @@ const numberMeanings: Record<number, { ar: string; en: string }> = {
   9: { ar: 'التَّكَامُل – عَطَاء وَحِكْمَة', en: 'Completion – Generosity & Wisdom' },
 };
 
+function BackArrow({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.backBtn,
+        pressed && styles.backBtnPressed,
+      ]}
+    >
+      <Text style={styles.backBtnArrow}>←</Text>
+    </Pressable>
+  );
+}
+
 export default function AnalyzeScreen() {
   const { fullName: paramName, motherName: paramMother } = useLocalSearchParams<{
     fullName?: string;
@@ -86,18 +103,31 @@ export default function AnalyzeScreen() {
     }
   }, [result?.zodiac, result?.totalValue]);
 
-  const handleFullAnalysis = () => {
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
+  const handleFullAnalysis = useCallback(() => {
     router.replace({ pathname: '/analyze', params: { fullName: inputName.trim(), ...(inputMother.trim() && { motherName: inputMother.trim() }) } });
-  };
+  }, [router, inputName, inputMother]);
 
   if (!paramName) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
         <View style={[styles.elementBg, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
         <SafeAreaView style={styles.headerContainer} edges={['top']}>
+          <BackArrow onPress={handleBack} />
           <SectionHeader titleAr="تَحْلِيلُ الْأَسْمَاءِ" titleEn="NAME ANALYSIS" compact />
         </SafeAreaView>
-        <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          enableOnAndroid
+          enableAutomaticScroll
+          extraScrollHeight={20}
+        >
           <Card variant="glass" style={styles.inputCard}>
             <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>الِاسْمُ الْكَامِل</Text>
             <TextInput
@@ -184,7 +214,7 @@ export default function AnalyzeScreen() {
               )}
             </View>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     );
   }
@@ -192,10 +222,13 @@ export default function AnalyzeScreen() {
   if (!result) {
     return (
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <SafeAreaView style={styles.emptyContainer}>
-          <Text style={styles.ornamentLarge}>﴿</Text>
-          <Text style={[styles.errorText, { color: theme.textSecondary }]}>No analysis data found</Text>
-          <Button title="رُجُوع" subtitle="GO BACK" onPress={() => router.back()} variant="outline" />
+        <SafeAreaView style={styles.emptyContainer} edges={['top']}>
+          <BackArrow onPress={handleBack} />
+          <View style={styles.emptyContent}>
+            <Text style={styles.ornamentLarge}>﴿</Text>
+            <Text style={[styles.errorText, { color: theme.textSecondary }]}>No analysis data found</Text>
+            <Button title="رُجُوع" subtitle="GO BACK" onPress={handleBack} variant="outline" />
+          </View>
         </SafeAreaView>
       </View>
     );
@@ -208,6 +241,7 @@ export default function AnalyzeScreen() {
       <View style={[styles.elementBg, { backgroundColor: el.bg }]} />
 
       <SafeAreaView style={styles.headerContainer} edges={['top']}>
+        <BackArrow onPress={handleBack} />
         <SectionHeader
           titleAr="نَتِيجَةُ التَّحْلِيلِ"
           titleEn="FULL ANALYSIS"
@@ -336,8 +370,8 @@ export default function AnalyzeScreen() {
           title="تَحْلِيلُ اسْمٍ آخَرَ"
           subtitle="ANALYZE ANOTHER NAME"
           variant="gold"
-          onPress={() => router.back()}
-          style={styles.backButton}
+          onPress={handleBack}
+          style={styles.anotherButton}
         />
 
         <View style={styles.footer}>
@@ -358,6 +392,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 360,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.four,
+    marginBottom: Spacing.two,
+  },
+  backBtnPressed: {
+    opacity: 0.5,
+  },
+  backBtnArrow: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   headerContainer: {
     paddingTop: Spacing.three,
@@ -608,7 +659,7 @@ const styles = StyleSheet.create({
     width: 50,
     textAlign: 'right',
   },
-  backButton: {
+  anotherButton: {
     marginTop: Spacing.two,
   },
   footer: {
@@ -644,9 +695,12 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
+    padding: Spacing.six,
+  },
+  emptyContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.six,
     gap: Spacing.four,
   },
   ornamentLarge: {

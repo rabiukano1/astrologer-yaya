@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   I18nManager,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -53,6 +55,7 @@ export default function RelationshipScreen() {
   const router = useRouter();
   const theme = useTheme();
   const isDark = theme.background === '#0A1628';
+  const handleBack = useCallback(() => router.back(), [router]);
   const [p1, setP1] = useState('');
   const [p2, setP2] = useState('');
   const [res, setRes] = useState<number | null>(null);
@@ -72,18 +75,27 @@ export default function RelationshipScreen() {
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <View style={[styles.topAccent, { backgroundColor: isDark ? 'rgba(255,107,138,0.03)' : 'rgba(255,107,138,0.04)' }]} />
 
-      <SafeAreaView style={styles.headerContainer} edges={['top']}>
+      <SafeAreaView style={styles.safeHeader} edges={['top']}>
+        <Pressable
+          onPress={handleBack}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+        >
+          <Text style={styles.backBtnArrow}>←</Text>
+        </Pressable>
         <SectionHeader
           titleAr="رَقَمُ الْعَلَاقَة"
           titleEn="RELATIONSHIP NUMBER"
         />
       </SafeAreaView>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        enableAutomaticScroll
+        extraScrollHeight={20}
       >
         <Card variant="glass">
           <Text style={[styles.label, { color: theme.text }]}>الشَّخْصُ الْأَوَّل</Text>
@@ -128,14 +140,7 @@ export default function RelationshipScreen() {
           )}
         </Card>
 
-        <Button
-          title="الرَّجُوع"
-          subtitle="BACK TO HOME"
-          variant="ghost"
-          onPress={() => router.back()}
-          style={styles.backBtn}
-        />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
@@ -151,9 +156,29 @@ const styles = StyleSheet.create({
     right: 0,
     height: 280,
   },
+  safeHeader: {
+    paddingTop: Spacing.four,
+  },
   headerContainer: {
     alignItems: 'center',
     paddingTop: Spacing.four,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.four,
+    marginBottom: Spacing.two,
+  },
+  backBtnPressed: {
+    opacity: 0.5,
+  },
+  backBtnArrow: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   scrollArea: {
     flex: 1,
@@ -210,8 +235,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     opacity: 0.4,
     marginTop: 1,
-  },
-  backBtn: {
-    marginTop: Spacing.three,
   },
 });

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   I18nManager,
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -24,8 +26,10 @@ const isRTL = I18nManager.isRTL;
 type SearchMode = 'value' | 'ayat';
 
 export default function SearchScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const isDark = theme.background === '#0A1628';
+  const handleBack = useCallback(() => router.back(), [router]);
 
   const [mode, setMode] = useState<SearchMode>('value');
   const [query, setQuery] = useState('');
@@ -98,6 +102,12 @@ export default function SearchScreen() {
       <View style={[styles.topAccent, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
 
       <SafeAreaView style={styles.headerContainer} edges={['top']}>
+        <Pressable
+          onPress={handleBack}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+        >
+          <Text style={styles.backBtnArrow}>←</Text>
+        </Pressable>
         <SectionHeader
           titleAr="الْبَحْثُ فِي الْقُرْآنِ"
           titleEn="QURAN SEARCH"
@@ -106,11 +116,14 @@ export default function SearchScreen() {
         />
       </SafeAreaView>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        enableAutomaticScroll
+        extraScrollHeight={20}
       >
         <Card variant="glass" style={styles.searchCard}>
           <View style={styles.segmentedControl}>
@@ -222,7 +235,7 @@ export default function SearchScreen() {
             </View>
           </Card>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
@@ -237,6 +250,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 280,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.four,
+    marginBottom: Spacing.two,
+  },
+  backBtnPressed: {
+    opacity: 0.5,
+  },
+  backBtnArrow: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   headerContainer: {
     paddingTop: Spacing.three,

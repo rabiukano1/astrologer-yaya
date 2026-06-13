@@ -32,6 +32,8 @@ function RootContent() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="relationship" />
+        <Stack.Screen name="winner-loser" />
+        <Stack.Screen name="planetary-hours" />
       </Stack>
     </>
   );

@@ -1,5 +1,7 @@
+import { useCallback } from 'react';
 import {
   I18nManager,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -7,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,14 +26,22 @@ const themeOptions: { mode: ThemeMode; label: string; labelAr: string; icon: str
 ];
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const isDark = theme.background === '#0A1628';
+  const handleBack = useCallback(() => router.back(), [router]);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <View style={[styles.topAccent, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
 
       <SafeAreaView style={styles.headerContainer} edges={['top']}>
+        <Pressable
+          onPress={handleBack}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+        >
+          <Text style={styles.backBtnArrow}>←</Text>
+        </Pressable>
         <SectionHeader
           titleAr="الإِعْدَادَات"
           titleEn="SETTINGS"
@@ -130,6 +141,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 280,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.four,
+    marginBottom: Spacing.two,
+  },
+  backBtnPressed: {
+    opacity: 0.5,
+  },
+  backBtnArrow: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   headerContainer: {
     paddingTop: Spacing.three,
