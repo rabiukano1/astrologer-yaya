@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
-  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +19,7 @@ import Animated, {
 
 import { Colors, Shadows, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocale } from '@/hooks/locale-context';
 import {
   computePlanetaryHours,
   computeSunriseSunset,
@@ -27,54 +27,46 @@ import {
   getCurrentPlanetaryHour,
 } from '@/data/planetary-hours';
 
-const isRTL = I18nManager.isRTL;
-
 const features = [
   {
+    key: 'nameAnalysis',
+    subtitleKey: 'nameAnalysisSub',
     symbol: { ios: 'person.text.rectangle', android: 'person', web: 'person' },
-    titleAr: 'تَحْلِيلُ الْأَسْمَاءِ',
-    titleEn: 'NAME ANALYSIS',
-    subtitle: 'حِسَابُ الْجُمَّلِ وَتَفْسِيرُ الْأَسْمَاءِ',
     route: '/analyze',
     accent: Colors.gold,
   },
   {
+    key: 'winnerLoser',
+    subtitleKey: 'winnerLoserSub',
     symbol: { ios: 'arrowtriangle.up.arrowtriangle.down', android: 'compare_arrows', web: 'compare_arrows' },
-    titleAr: 'غَالِبٌ وَالْمَغْلُوب',
-    titleEn: 'WINNER & LOSER',
-    subtitle: 'الْمُقَارَنَةُ بَيْنَ الْأَسْمَاء',
     route: '/winner-loser',
     accent: '#FF6B35',
   },
   {
+    key: 'relationshipNumber',
+    subtitleKey: 'relationshipNumberSub',
     symbol: { ios: 'heart.fill', android: 'favorite', web: 'favorite' },
-    titleAr: 'رَقَمُ الْعَلَاقَة',
-    titleEn: 'RELATIONSHIP NUMBER',
-    subtitle: 'رَقَمُ التَّوَافُقِ بَيْنَ شَخْصَيْن',
     route: '/relationship',
     accent: '#FF6B8A',
   },
   {
+    key: 'quranSearch',
+    subtitleKey: 'quranSearchSub',
     symbol: { ios: 'book.fill', android: 'book', web: 'book' },
-    titleAr: 'الْبَحْثُ فِي الْقُرْآنِ',
-    titleEn: 'QURAN SEARCH',
-    subtitle: 'ابْحَثْ فِي آيَاتِ الْقُرْآنِ الْكَرِيم',
     route: '/search',
     accent: '#4BB8FA',
   },
   {
+    key: 'planetaryHours',
+    subtitleKey: 'planetaryHoursSub',
     symbol: { ios: 'clock.fill', android: 'schedule', web: 'schedule' },
-    titleAr: 'السَّاعَاتُ الْكَوْكَبِيَّة',
-    titleEn: 'PLANETARY HOURS',
-    subtitle: 'أَوْقَاتُ الْكَوَاكِبِ فِي الْيَوْمِ وَاللَّيْل',
     route: '/planetary-hours',
     accent: '#9B9BCE',
   },
   {
+    key: 'settings',
+    subtitleKey: 'settingsSub',
     symbol: { ios: 'gearshape.fill', android: 'settings', web: 'settings' },
-    titleAr: 'الإِعْدَادَات',
-    titleEn: 'SETTINGS',
-    subtitle: 'اللُّغَةُ وَالْمَظْهَرُ وَالْإِعْدَادَات',
     route: '/settings',
     accent: '#9CA3AF',
   },
@@ -86,30 +78,41 @@ const GRID_GAP = 12;
 const CARD_COUNT_PER_ROW = 2;
 const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP) / CARD_COUNT_PER_ROW;
 
-function DashboardCard({ feature, index, onPress, theme, isDark }: {
+function DashboardCard({ feature, index, onPress, theme, isDark, t }: {
   feature: typeof features[number];
   index: number;
   onPress: () => void;
   theme: ReturnType<typeof useTheme>;
   isDark: boolean;
+  t: (key: string) => string;
 }) {
   const scale = useSharedValue(1);
+  const fadeIn = useSharedValue(0);
+
+  useEffect(() => {
+    setTimeout(() => {
+      fadeIn.value = withSpring(1, { damping: 20 });
+    }, index * 80);
+  }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeIn.value,
     transform: [{ scale: scale.value }],
   }));
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(200 + index * 80).springify().damping(20)}
-      style={{ width: CARD_WIDTH }}
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => { scale.value = withSpring(0.95, { damping: 20 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 12 }); }}
     >
-      <Pressable
-        onPress={onPress}
-        onPressIn={() => { scale.value = withSpring(0.95, { damping: 20 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 12 }); }}
+      <Animated.View
+        style={[
+          { width: CARD_WIDTH },
+          animatedStyle,
+        ]}
       >
-        <Animated.View
+        <View
           style={[
             styles.card,
             {
@@ -117,7 +120,6 @@ function DashboardCard({ feature, index, onPress, theme, isDark }: {
               borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
             },
             Shadows.soft,
-            animatedStyle,
           ]}
         >
           <View style={[styles.cardAccent, { backgroundColor: feature.accent }]} />
@@ -130,16 +132,16 @@ function DashboardCard({ feature, index, onPress, theme, isDark }: {
                 tintColor={feature.accent}
               />
             </View>
-            <Text style={[styles.cardTitleEn, { color: theme.text }]} numberOfLines={1}>
-              {feature.titleEn}
+            <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
+              {t(feature.key)}
             </Text>
-            <Text style={[styles.cardTitleAr, { color: theme.textSecondary }]} numberOfLines={1}>
-              {feature.titleAr}
+            <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]} numberOfLines={1}>
+              {t(feature.subtitleKey)}
             </Text>
           </View>
-        </Animated.View>
-      </Pressable>
-    </Animated.View>
+        </View>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -170,13 +172,24 @@ function CurrentPlanetCard({
   onPress,
   theme,
   isDark,
+  t,
+  isRTL,
 }: {
   onPress: () => void;
   theme: ReturnType<typeof useTheme>;
   isDark: boolean;
+  t: (key: string) => string;
+  isRTL: boolean;
 }) {
   const scale = useSharedValue(1);
+  const fadeIn = useSharedValue(0);
+
+  useEffect(() => {
+    fadeIn.value = withSpring(1, { damping: 20 });
+  }, []);
+
   const animatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeIn.value,
     transform: [{ scale: scale.value }],
   }));
 
@@ -212,7 +225,7 @@ function CurrentPlanetCard({
         ]}
       >
         <View style={styles.planetCardHeader}>
-          <View style={styles.planetCardLeft}>
+          <View style={[styles.planetCardLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <View style={[styles.planetIconWrap, { backgroundColor: '#9B9BCE18' }]}>
               <SymbolView
                 name="clock.fill"
@@ -223,7 +236,7 @@ function CurrentPlanetCard({
             </View>
             <View style={styles.planetCardNames}>
               <Text style={[styles.planetNameEn, { color: theme.text }]}>
-                {isRTL ? 'جَارٍ التَّحْمِيل' : 'Loading'}
+                {t('loading')}
               </Text>
             </View>
           </View>
@@ -243,7 +256,6 @@ function CurrentPlanetCard({
       onPressOut={() => { scale.value = withSpring(1, { damping: 12 }); }}
     >
       <Animated.View
-        entering={FadeInDown.delay(250).springify().damping(20)}
         style={[
           styles.planetCard,
           {
@@ -255,8 +267,8 @@ function CurrentPlanetCard({
           animatedStyle,
         ]}
       >
-        <View style={styles.planetCardHeader}>
-          <View style={styles.planetCardLeft}>
+        <View style={[styles.planetCardHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.planetCardLeft, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <View
               style={[
                 styles.planetIconWrap,
@@ -308,7 +320,7 @@ function CurrentPlanetCard({
           />
         </View>
 
-        <View style={styles.planetCardFooter}>
+        <View style={[styles.planetCardFooter, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <View
             style={[
               styles.planetBadge,
@@ -331,11 +343,11 @@ function CurrentPlanetCard({
                 { color: currentHour.isDay ? Colors.gold : '#9B9BCE' },
               ]}
             >
-              {currentHour.isDay ? (isRTL ? 'نَهَار' : 'DAY') : (isRTL ? 'لَيْل' : 'NIGHT')}
+              {currentHour.isDay ? t('day') : t('night')}
             </Text>
           </View>
           <Text style={[styles.planetHourLabel, { color: theme.textSecondary }]}>
-            {isRTL ? 'السَّاعَة' : 'HOUR'} {currentHour.index}
+            {t('hour')} {currentHour.index}
           </Text>
           <SymbolView
             name="chevron.right"
@@ -353,6 +365,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const isDark = theme.background === '#0A1628';
+  const { t, isRTL } = useLocale();
 
   const handlePress = useCallback((route: string) => {
     router.push(route as any);
@@ -396,14 +409,11 @@ export default function HomeScreen() {
           >
             <View style={styles.headerTopRow}>
               <Text style={[styles.greeting, { color: theme.textSecondary }]}>
-                {isRTL ? 'الرَّئِيسِيَّة' : 'DASHBOARD'}
+                {t('dashboard')}
               </Text>
             </View>
             <Text style={[styles.appTitleAr, { color: theme.text }]}>
-              أَسْتْرُولُوجَرْ يَايَا
-            </Text>
-            <Text style={[styles.appTitleEn, { color: theme.textSecondary }]}>
-              ASTROLOGER YAYA
+              {t('appName')}
             </Text>
             <View
               style={[
@@ -418,14 +428,14 @@ export default function HomeScreen() {
               <View style={[styles.dividerDot, { backgroundColor: Colors.gold }]} />
             </View>
             <Text style={[styles.tagline, { color: theme.textSecondary }]}>
-              حِسَابُ الْجُمَّلِ وَتَحْلِيلُ الْأَسْمَاءِ
+              {t('tagline')}
             </Text>
           </Animated.View>
 
           {/* Stats Row */}
           <Animated.View
             entering={FadeInDown.delay(150).springify().damping(20)}
-            style={styles.statsRow}
+            style={[styles.statsRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
           >
             <View
               style={[
@@ -442,7 +452,7 @@ export default function HomeScreen() {
             >
               <Text style={[styles.statNumber, { color: Colors.gold }]}>٦</Text>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-                {isRTL ? 'أَدَوَات' : 'TOOLS'}
+                {t('tools')}
               </Text>
             </View>
             <View
@@ -460,7 +470,7 @@ export default function HomeScreen() {
             >
               <Text style={[styles.statNumber, { color: '#4BB8FA' }]}>٩٩</Text>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-                {isRTL ? 'اسْماً' : 'NAMES'}
+                {t('namesShort')}
               </Text>
             </View>
             <View
@@ -478,7 +488,7 @@ export default function HomeScreen() {
             >
               <Text style={[styles.statNumber, { color: '#FF6B8A' }]}>∞</Text>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-                {isRTL ? 'تَوَافُق' : 'MATCH'}
+                {t('match')}
               </Text>
             </View>
           </Animated.View>
@@ -488,6 +498,8 @@ export default function HomeScreen() {
             onPress={() => router.push('/planetary-hours' as any)}
             theme={theme}
             isDark={isDark}
+            t={t}
+            isRTL={isRTL}
           />
 
           {/* Feature Grid */}
@@ -497,10 +509,10 @@ export default function HomeScreen() {
               style={styles.sectionHeader}
             >
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                {isRTL ? 'الْمُمَيَّزَات' : 'FEATURES'}
+                {t('features')}
               </Text>
             </Animated.View>
-            <View style={styles.grid}>
+            <View style={[styles.grid, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               {features.map((f, i) => (
                 <DashboardCard
                   key={f.route}
@@ -509,6 +521,7 @@ export default function HomeScreen() {
                   onPress={() => handlePress(f.route)}
                   theme={theme}
                   isDark={isDark}
+                  t={t}
                 />
               ))}
             </View>
@@ -557,7 +570,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
   },
   headerTopRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
@@ -575,14 +587,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     letterSpacing: 0.3,
-  },
-  appTitleEn: {
-    fontSize: 9,
-    letterSpacing: 3.5,
-    textAlign: 'center',
-    opacity: 0.35,
-    marginTop: Spacing.one,
-    textTransform: 'uppercase',
   },
   divider: {
     width: '100%',
@@ -606,7 +610,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   statsRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     gap: GRID_GAP,
     marginBottom: Spacing.five,
   },
@@ -643,7 +646,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   grid: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     flexWrap: 'wrap',
     gap: GRID_GAP,
   },
@@ -671,13 +673,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.two,
   },
-  cardTitleEn: {
+  cardTitle: {
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
     letterSpacing: 0.5,
   },
-  cardTitleAr: {
+  cardSubtitle: {
     fontSize: 11,
     fontWeight: '400',
     textAlign: 'center',
@@ -692,12 +694,10 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   planetCardHeader: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   planetCardLeft: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: Spacing.three,
   },
@@ -744,13 +744,12 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   planetCardFooter: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 2,
   },
   planetBadge: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,

@@ -7,18 +7,17 @@ import { Colors, Shadows, Spacing } from '@/constants/theme';
 interface CardProps extends ViewProps {
   children: ReactNode;
   variant?: 'glass' | 'solid' | 'elevated';
-  intensity?: number;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
 }
 
-export function Card({ children, variant = 'glass', intensity = 70, style, ...props }: CardProps) {
+export function Card({ children, variant = 'glass', style, ...props }: CardProps) {
   const theme = useTheme();
   const isDark = theme.background === '#0A1628';
 
   if (variant === 'glass') {
     return (
       <GlassView
-        intensity={intensity}
+        glassEffectStyle="regular"
         style={[
           styles.card,
           {

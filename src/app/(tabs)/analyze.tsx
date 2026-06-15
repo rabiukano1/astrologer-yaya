@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  I18nManager,
   Platform,
   Pressable,
   ScrollView,
@@ -15,13 +14,12 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocale } from '@/hooks/locale-context';
 import { useNameAnalysis, type ElementCategory } from '@/hooks/use-name-analysis';
 import { searchQuranByAbjad } from '@/hooks/use-quran-search';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
-
-const isRTL = I18nManager.isRTL;
 
 const elementMeta: Record<ElementCategory, { color: string; icon: string; bg: string }> = {
   نار: { color: '#FF6B35', icon: '▲', bg: 'rgba(255,107,53,0.08)' },
@@ -82,6 +80,7 @@ export default function AnalyzeScreen() {
   }>();
   const router = useRouter();
   const theme = useTheme();
+  const { t, isRTL, locale } = useLocale();
   const isDark = theme.background === '#0A1628';
   const [inputName, setInputName] = useState(paramName || '');
   const [inputMother, setInputMother] = useState('');
@@ -96,12 +95,12 @@ export default function AnalyzeScreen() {
   const [verses, setVerses] = useState<Awaited<ReturnType<typeof searchQuranByAbjad>>>([]);
 
   useEffect(() => {
-    if (result?.zodiac) {
+    if (result) {
       searchQuranByAbjad(result.totalValue).then(setVerses);
     } else {
       setVerses([]);
     }
-  }, [result?.zodiac, result?.totalValue]);
+  }, [result?.totalValue]);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -117,7 +116,7 @@ export default function AnalyzeScreen() {
         <View style={[styles.elementBg, { backgroundColor: isDark ? 'rgba(75,184,250,0.03)' : 'rgba(212,175,55,0.04)' }]} />
         <SafeAreaView style={styles.headerContainer} edges={['top']}>
           <BackArrow onPress={handleBack} />
-          <SectionHeader titleAr="تَحْلِيلُ الْأَسْمَاءِ" titleEn="NAME ANALYSIS" compact />
+          <SectionHeader title={t('nameAnalysisTitle')} compact />
         </SafeAreaView>
         <KeyboardAwareScrollView
           style={styles.scrollArea}
@@ -129,7 +128,7 @@ export default function AnalyzeScreen() {
           extraScrollHeight={20}
         >
           <Card variant="glass" style={styles.inputCard}>
-            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>الِاسْمُ الْكَامِل</Text>
+            <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>{t('fullName')}</Text>
             <TextInput
               style={[localStyles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text }]}
               value={inputName}
@@ -151,17 +150,15 @@ export default function AnalyzeScreen() {
                 <View style={styles.mainMetrics}>
                   <View style={styles.metricCard}>
                     <Text style={styles.metricValueGold}>{result.totalValue}</Text>
-                    <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الْقِيمَة</Text>
-                    <Text style={styles.metricLabelEn}>TOTAL</Text>
+                    <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>{t('total')}</Text>
                   </View>
                   <View style={styles.metricCard}>
                     <Text style={[styles.metricValue, { color: Colors.accent }]}>{result.reducedNumber}</Text>
-                    <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الرَّقْمُ</Text>
-                    <Text style={styles.metricLabelEn}>NUMBER</Text>
+                    <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>{t('number')}</Text>
                   </View>
                 </View>
                 <View style={[styles.traitsGrid, { justifyContent: 'center' }]}>
-                  {elementTraits[result.element].en.map((trait, i) => (
+                  {(locale === 'ar' ? elementTraits[result.element].ar : elementTraits[result.element].en).map((trait, i) => (
                     <View key={i} style={[styles.traitBadge, { backgroundColor: elementMeta[result.element].color }]}>
                       <Text style={styles.traitText}>{trait}</Text>
                     </View>
@@ -171,17 +168,17 @@ export default function AnalyzeScreen() {
 
               {wantsZodiac === null && (
                 <Card variant="solid" style={{ padding: Spacing.four, alignItems: 'center' }}>
-                  <Text style={[localStyles.promptTitle, { color: theme.text }]}>هَلْ تُرِيدُ مَعْرِفَةَ الطَّالِعِ وَالْبُرْج؟</Text>
+                  <Text style={[localStyles.promptTitle, { color: theme.text }]}>{t('promptZodiac')}</Text>
                   <View style={localStyles.promptButtons}>
-                    <Button title="نَعَمْ" variant="primary" onPress={() => setWantsZodiac('yes')} style={{ flex: 1 }} size="sm" />
-                    <Button title="لَا" variant="ghost" onPress={() => setWantsZodiac('no')} style={{ flex: 1 }} size="sm" />
+                    <Button title={t('yes')} variant="primary" onPress={() => setWantsZodiac('yes')} style={{ flex: 1 }} size="sm" />
+                    <Button title={t('no')} variant="ghost" onPress={() => setWantsZodiac('no')} style={{ flex: 1 }} size="sm" />
                   </View>
                 </Card>
               )}
 
               {wantsZodiac === 'yes' && (
                 <Card variant="solid" style={{ padding: Spacing.four }}>
-                  <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>اسْمُ الْأُم</Text>
+                  <Text style={[styles.heroLabel, { color: theme.textSecondary }]}>{t('motherName')}</Text>
                   <TextInput
                     style={[localStyles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text, marginTop: Spacing.two }]}
                     value={inputMother}
@@ -192,25 +189,24 @@ export default function AnalyzeScreen() {
                   />
                   {result.zodiac && (
                     <View style={[styles.verseItem, { backgroundColor: isDark ? 'rgba(75,184,250,0.08)' : 'rgba(75,184,250,0.06)', padding: Spacing.three, borderRadius: 14, marginTop: Spacing.three, alignItems: 'center' }]}>
-                      <Text style={[styles.heroLabel, { color: Colors.accent }]}>الْبُرْج • ZODIAC</Text>
-                      <Text style={[styles.zodiacAr, { color: theme.text }]}>{result.zodiac.ar}</Text>
-                      <Text style={[styles.zodiacEn, { color: theme.textSecondary }]}>{result.zodiac.en}</Text>
+                      <Text style={[styles.heroLabel, { color: Colors.accent }]}>{t('zodiac')}</Text>
+                      <Text style={[styles.zodiacAr, { color: theme.text }]}>{locale === 'ar' ? result.zodiac.ar : result.zodiac.en}</Text>
                     </View>
                   )}
                   {verses.length > 0 && (
                     <View style={{ backgroundColor: isDark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.06)', padding: Spacing.three, borderRadius: 14, marginTop: Spacing.three, alignItems: 'center' }}>
-                      <Text style={[styles.heroLabel, { color: Colors.accent }]}>الْآيَات • VERSES</Text>
-                      <Text style={{ color: Colors.gold, fontSize: 16, fontWeight: '700' }}>{verses.length} matching</Text>
+                      <Text style={[styles.heroLabel, { color: Colors.accent }]}>{t('verses')}</Text>
+                      <Text style={{ color: Colors.gold, fontSize: 16, fontWeight: '700' }}>{verses.length} {t('matching')}</Text>
                     </View>
                   )}
                   {inputMother.trim() && result.zodiac && (
-                    <Button title="تَحْلِيلٌ كَامِل" subtitle="FULL ANALYSIS" variant="gold" onPress={handleFullAnalysis} style={{ marginTop: Spacing.three }} />
+                    <Button title={t('fullAnalysis')} variant="gold" onPress={handleFullAnalysis} style={{ marginTop: Spacing.three }} />
                   )}
                 </Card>
               )}
 
               {wantsZodiac === 'no' && (
-                <Button title="تَحْلِيلٌ كَامِل" subtitle="FULL ANALYSIS" variant="gold" onPress={handleFullAnalysis} />
+                <Button title={t('fullAnalysis')} variant="gold" onPress={handleFullAnalysis} />
               )}
             </View>
           )}
@@ -226,8 +222,8 @@ export default function AnalyzeScreen() {
           <BackArrow onPress={handleBack} />
           <View style={styles.emptyContent}>
             <Text style={styles.ornamentLarge}>﴿</Text>
-            <Text style={[styles.errorText, { color: theme.textSecondary }]}>No analysis data found</Text>
-            <Button title="رُجُوع" subtitle="GO BACK" onPress={handleBack} variant="outline" />
+            <Text style={[styles.errorText, { color: theme.textSecondary }]}>{t('noAnalysisData')}</Text>
+            <Button title={t('goBack')} onPress={handleBack} variant="outline" />
           </View>
         </SafeAreaView>
       </View>
@@ -235,6 +231,10 @@ export default function AnalyzeScreen() {
   }
 
   const el = elementMeta[result.element];
+  const traits = elementTraits[result.element];
+  const displayTraits = locale === 'ar' ? traits.ar : traits.en;
+  const meaning = numberMeanings[result.reducedNumber];
+  const displayMeaning = locale === 'ar' ? meaning.ar : meaning.en;
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -243,8 +243,7 @@ export default function AnalyzeScreen() {
       <SafeAreaView style={styles.headerContainer} edges={['top']}>
         <BackArrow onPress={handleBack} />
         <SectionHeader
-          titleAr="نَتِيجَةُ التَّحْلِيلِ"
-          titleEn="FULL ANALYSIS"
+          title={t('resultAnalysis')}
           style={styles.header}
           compact
         />
@@ -256,7 +255,7 @@ export default function AnalyzeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card variant="elevated" style={styles.heroCard}>
-          <Text style={styles.heroLabel}>الِاسْمُ الْكَامِل</Text>
+          <Text style={styles.heroLabel}>{t('fullName')}</Text>
           <Text style={[styles.heroName, { color: theme.text }]}>{result.fullName}</Text>
           {result.motherName && result.motherName !== '—' && (
             <View style={styles.motherRow}>
@@ -269,31 +268,28 @@ export default function AnalyzeScreen() {
         <View style={styles.mainMetrics}>
           <Card variant="solid" style={styles.metricCard}>
             <Text style={styles.metricValueGold}>{result.totalValue}</Text>
-            <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الْقِيمَة</Text>
-            <Text style={styles.metricLabelEn}>TOTAL</Text>
+            <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>{t('total')}</Text>
           </Card>
           <Card variant="solid" style={styles.metricCard}>
             <Text style={[styles.metricValue, { color: Colors.accent }]}>{result.reducedNumber}</Text>
-            <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الرَّقْمُ</Text>
-            <Text style={styles.metricLabelEn}>NUMBER</Text>
+            <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>{t('number')}</Text>
           </Card>
           <Card variant="solid" style={styles.metricCard}>
             <Text style={[styles.metricValue, { color: Colors.secondary }]}>{result.spiritualNumber}</Text>
-            <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>الرُّوحِيّ</Text>
-            <Text style={styles.metricLabelEn}>SPIRIT</Text>
+            <Text style={[styles.metricLabel, { color: theme.textSecondary }]}>{t('spirit')}</Text>
           </Card>
         </View>
 
         <Card variant="glass" style={[styles.elementCard, { borderColor: el.color }]}>
-          <View style={styles.elementHeader}>
+          <View style={[styles.elementHeader, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
             <Text style={[styles.elementIcon, { color: el.color }]}>{el.icon}</Text>
             <View>
               <Text style={[styles.elementName, { color: theme.text }]}>{result.element}</Text>
-              <Text style={[styles.elementLabel, { color: theme.textSecondary }]}>العُنْصُر • ELEMENT</Text>
+              <Text style={[styles.elementLabel, { color: theme.textSecondary }]}>{t('element')}</Text>
             </View>
           </View>
           <View style={styles.traitsGrid}>
-            {elementTraits[result.element].en.map((trait, i) => (
+            {displayTraits.map((trait, i) => (
               <View key={i} style={[styles.traitBadge, { backgroundColor: el.color }]}>
                 <Text style={styles.traitText}>{trait}</Text>
               </View>
@@ -303,11 +299,10 @@ export default function AnalyzeScreen() {
 
         {result.zodiac && (
           <Card variant="glass" style={styles.zodiacCard}>
-            <View style={styles.zodiacContent}>
+            <View style={[styles.zodiacContent, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <View style={styles.zodiacInfo}>
-                <Text style={[styles.zodiacLabel, { color: theme.textSecondary }]}>الْبُرْج • ZODIAC</Text>
-                <Text style={[styles.zodiacAr, { color: theme.text }]}>{result.zodiac.ar}</Text>
-                <Text style={[styles.zodiacEn, { color: theme.textSecondary }]}>{result.zodiac.en}</Text>
+                <Text style={[styles.zodiacLabel, { color: theme.textSecondary }]}>{t('zodiac')}</Text>
+                <Text style={[styles.zodiacAr, { color: theme.text }]}>{locale === 'ar' ? result.zodiac.ar : result.zodiac.en}</Text>
               </View>
               <View style={[styles.zodiacSymbolBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)' }]}>
                 <Text style={[styles.zodiacSymbol, { color: Colors.accent }]}>♄</Text>
@@ -317,18 +312,15 @@ export default function AnalyzeScreen() {
         )}
 
         <Card variant="solid" style={styles.meaningCard}>
-          <Text style={styles.sectionTitleAr}>مَعْنَى الرَّقْم</Text>
-          <Text style={styles.sectionTitleEn}>NUMBER MEANING</Text>
+          <Text style={[styles.sectionTitleAr, { textAlign: isRTL ? 'right' : 'left' }]}>{t('numberMeaning')}</Text>
           <View style={[styles.meaningBox, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}>
-            <Text style={[styles.meaningAr, { color: theme.text }]}>{numberMeanings[result.reducedNumber]?.ar}</Text>
-            <Text style={[styles.meaningEn, { color: theme.textSecondary }]}>{numberMeanings[result.reducedNumber]?.en}</Text>
+            <Text style={[styles.meaningAr, { color: theme.text }]}>{displayMeaning}</Text>
           </View>
         </Card>
 
         {verses.length > 0 && (
           <Card variant="glass" style={styles.versesCard}>
-            <Text style={styles.sectionTitleAr}>الْآيَاتُ الْمُطَابِقَة</Text>
-            <Text style={styles.sectionTitleEn}>MATCHING VERSES</Text>
+            <Text style={[styles.sectionTitleAr, { textAlign: isRTL ? 'right' : 'left' }]}>{t('matchingVerses')}</Text>
             <View style={styles.versesList}>
               {verses.slice(0, 3).map((v, i) => (
                 <View key={i} style={[styles.verseItem, i > 0 && styles.verseBorder]}>
@@ -339,22 +331,21 @@ export default function AnalyzeScreen() {
                 </View>
               ))}
               {verses.length > 3 && (
-                <Text style={styles.moreVerses}>+{verses.length - 3} more</Text>
+                <Text style={styles.moreVerses}>+{verses.length - 3} {t('more')}</Text>
               )}
             </View>
           </Card>
         )}
 
         <Card variant="solid" style={styles.breakdownCard}>
-          <Text style={styles.sectionTitleAr}>تَفْصِيلُ الْحُرُوفِ</Text>
-          <Text style={styles.sectionTitleEn}>LETTER BREAKDOWN</Text>
+          <Text style={[styles.sectionTitleAr, { textAlign: isRTL ? 'right' : 'left' }]}>{t('letterBreakdown')}</Text>
           <View style={styles.breakdownTable}>
             {result.letterBreakdown.map((item, index) => {
               const isSep = item.letter === '─';
               return (
                 <View key={index} style={[styles.breakdownRow, isSep && styles.breakdownSep]}>
                   <Text style={[styles.breakdownLetter, { color: isSep ? Colors.gold : theme.text }]}>
-                    {isSep ? 'مَجْمُوع' : item.letter}
+                    {isSep ? t('totalSum') : item.letter}
                   </Text>
                   <View style={[styles.breakdownDot, { backgroundColor: theme.border }]} />
                   <Text style={[styles.breakdownValue, { color: isSep ? Colors.gold : Colors.accent }]}>
@@ -367,8 +358,7 @@ export default function AnalyzeScreen() {
         </Card>
 
         <Button
-          title="تَحْلِيلُ اسْمٍ آخَرَ"
-          subtitle="ANALYZE ANOTHER NAME"
+          title={t('anotherName')}
           variant="gold"
           onPress={handleBack}
           style={styles.anotherButton}
@@ -482,17 +472,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 2,
   },
-  metricLabelEn: {
-    fontSize: 7,
-    letterSpacing: 1,
-    opacity: 0.35,
-    marginTop: 1,
-  },
   elementCard: {
     padding: Spacing.four,
   },
   elementHeader: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: Spacing.three,
     marginBottom: Spacing.three,
@@ -529,7 +512,6 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   zodiacContent: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -546,11 +528,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
   },
-  zodiacEn: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 2,
-  },
   zodiacSymbolBox: {
     width: 56,
     height: 56,
@@ -565,14 +542,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: Colors.gold,
-    textAlign: isRTL ? 'right' : 'left',
-  },
-  sectionTitleEn: {
-    fontSize: 8,
-    letterSpacing: 1.5,
-    opacity: 0.4,
-    marginBottom: Spacing.three,
-    textAlign: isRTL ? 'right' : 'left',
   },
   meaningCard: {
     padding: Spacing.four,
@@ -587,12 +556,6 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     textAlign: 'center',
     marginBottom: Spacing.one,
-  },
-  meaningEn: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-    opacity: 0.8,
   },
   versesCard: {
     padding: Spacing.four,

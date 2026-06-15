@@ -135,6 +135,16 @@ export function getCurrentPlanetaryHour(hours: PlanetaryHour[]): PlanetaryHour |
   return null;
 }
 
+export function getPlanetaryHourForDate(hours: PlanetaryHour[], date: Date): PlanetaryHour | null {
+  const time = date.getTime();
+  for (const h of hours) {
+    if (time >= h.start.getTime() && time < h.end.getTime()) {
+      return h;
+    }
+  }
+  return null;
+}
+
 export function estimateLocationFromTimezone(): LocationInfo {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

@@ -1,3 +1,5 @@
+import { searchVersesByAbjad } from '@/services/quran-database';
+
 export interface VerseMatch {
   surah: number;
   surahName: string;
@@ -5,28 +7,12 @@ export interface VerseMatch {
   text: string;
 }
 
-type RawEntry = [number, string, number, string];
-type LookupData = Record<string, RawEntry[]>;
-
-let lookupPromise: Promise<LookupData> | null = null;
-
-function loadLookup(): Promise<LookupData> {
-  if (lookupPromise) return lookupPromise;
-  lookupPromise = fetch('/quran-verses.json').then(r => r.json());
-  return lookupPromise;
-}
-
 export async function searchQuranByAbjad(totalValue: number): Promise<VerseMatch[]> {
-  const lookup = await loadLookup();
-  const key = String(totalValue);
-  const matches = lookup[key];
-  if (!matches) return [];
-  return matches
-    .map(([surah, surahName, verse, text]) => ({
-      surah,
-      surahName,
-      verse,
-      text,
-    }))
-    .sort((a, b) => a.surah - b.surah || a.verse - b.verse);
+  const rows = await searchVersesByAbjad(totalValue);
+  return rows.map(r => ({
+    surah: r.surah_id,
+    surahName: r.surah_name,
+    verse: r.verse_number,
+    text: r.verse_text,
+  }));
 }

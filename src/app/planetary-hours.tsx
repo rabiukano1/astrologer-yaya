@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,17 +12,18 @@ import { SymbolView } from 'expo-symbols';
 
 import { Colors, Shadows, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocale } from '@/hooks/locale-context';
 
 import {
   computePlanetaryHours,
   computeSunriseSunset,
   estimateLocationFromTimezone,
   getCurrentPlanetaryHour,
+  getPlanetaryHourForDate,
   LocationInfo,
   PlanetaryHour,
 } from '@/data/planetary-hours';
-
-const isRTL = I18nManager.isRTL;
+import { DateTimePicker } from '@/components/date-time-picker';
 
 function formatTime(date: Date): string {
   const h = date.getHours().toString().padStart(2, '0');
@@ -46,6 +46,20 @@ function formatDuration(ms: number): string {
   if (h === 0) return `${m}m`;
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
+}
+
+function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const mo = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${mo}-${d}`;
+}
+
+function formatDateTime(date: Date): string {
+  const h = date.getHours().toString().padStart(2, '0');
+  const m = date.getMinutes().toString().padStart(2, '0');
+  const s = date.getSeconds().toString().padStart(2, '0');
+  return `${formatDate(date)}  ${h}:${m}:${s}`;
 }
 
 function useRealTime(interval = 10_000) {
@@ -83,6 +97,7 @@ function PlanetIcon({ planet, size = 28 }: { planet: PlanetaryHour['planet']; si
 export default function PlanetaryHoursScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t, isRTL, locale } = useLocale();
   const isDark = theme.background === '#0A1628';
   const handleBack = useCallback(() => router.back(), [router]);
 
@@ -90,6 +105,10 @@ export default function PlanetaryHoursScreen() {
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
   const [showConfig, setShowConfig] = useState(false);
+  const [customDate, setCustomDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const effectiveDate = customDate ?? new Date();
 
   const activeLat = useMemo(() => {
     const p = parseFloat(manualLat);
@@ -105,8 +124,8 @@ export default function PlanetaryHoursScreen() {
 
   // Compute sunrise/sunset from location
   const sunTimes = useMemo(
-    () => computeSunriseSunset(activeLat, activeLng),
-    [activeLat, activeLng],
+    () => computeSunriseSunset(activeLat, activeLng, effectiveDate),
+    [activeLat, activeLng, effectiveDate],
   );
 
   const sunriseStr = sunTimes ? formatTime(sunTimes.sunrise) : '--:--';
@@ -115,15 +134,19 @@ export default function PlanetaryHoursScreen() {
   const hours = useMemo(
     () => {
       if (!sunTimes) return [];
-      return computePlanetaryHours(sunTimes.sunrise, sunTimes.sunset);
+      return computePlanetaryHours(sunTimes.sunrise, sunTimes.sunset, effectiveDate);
     },
-    [sunTimes?.sunrise?.getTime(), sunTimes?.sunset?.getTime()],
+    [sunTimes?.sunrise?.getTime(), sunTimes?.sunset?.getTime(), effectiveDate],
   );
 
   const now = useRealTime(10_000);
+  const clockNow = useRealTime(1_000);
   const currentHour = useMemo(
-    () => getCurrentPlanetaryHour(hours),
-    [hours, now],
+    () => {
+      if (customDate) return getPlanetaryHourForDate(hours, customDate);
+      return getCurrentPlanetaryHour(hours);
+    },
+    [hours, now, customDate],
   );
 
   const scrollRef = useRef<ScrollView>(null);
@@ -146,8 +169,9 @@ export default function PlanetaryHoursScreen() {
     ? new Date(sunTimes.sunrise.getTime() + 86400000).getTime() - sunTimes.sunset.getTime()
     : 0;
 
+  const activeTime = customDate ? customDate.getTime() : now;
   const dayProgress = currentHour?.isDay
-    ? ((now - currentHour.start.getTime()) / (currentHour.end.getTime() - currentHour.start.getTime())) * 100
+    ? ((activeTime - currentHour.start.getTime()) / (currentHour.end.getTime() - currentHour.start.getTime())) * 100
     : 0;
 
   return (
@@ -165,7 +189,7 @@ export default function PlanetaryHoursScreen() {
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Pressable
             onPress={handleBack}
             style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
@@ -174,7 +198,7 @@ export default function PlanetaryHoursScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={[styles.headerTitle, { color: theme.text }]}>
-              {isRTL ? 'السَّاعَاتُ الْكَوْكَبِيَّة' : 'Planetary Hours'}
+              {t('planetaryHoursTitle')}
             </Text>
           </View>
           <Pressable
@@ -206,7 +230,7 @@ export default function PlanetaryHoursScreen() {
               },
             ]}
           >
-            <View style={styles.locRow}>
+            <View style={[styles.locRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
               <SymbolView
                 name="location.fill"
                 size={12}
@@ -223,6 +247,49 @@ export default function PlanetaryHoursScreen() {
             </View>
           </View>
 
+          {/* Date/Time Bar */}
+          <Pressable
+            onPress={() => setShowDatePicker(true)}
+            style={[
+              styles.dateBar,
+              {
+                backgroundColor: customDate ? Colors.gold + '0D' : isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.2)',
+                borderColor: customDate ? Colors.gold + '30' : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+              },
+            ]}
+          >
+            <View style={[styles.dateBarRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+              <SymbolView
+                name={customDate ? 'calendar.badge.clock' : 'clock.fill'}
+                size={13}
+                weight="medium"
+                tintColor={customDate ? Colors.gold : theme.textSecondary}
+              />
+              <Text style={[styles.dateBarText, { color: customDate ? Colors.gold : theme.text }]} numberOfLines={1}>
+                {customDate ? formatDateTime(customDate) : formatDateTime(new Date(clockNow))}
+              </Text>
+              {customDate && (
+                <>
+                  <View style={[styles.dateBadge, { backgroundColor: Colors.gold + '20' }]}>
+                    <Text style={[styles.dateBadgeText, { color: Colors.gold }]}>
+                      {t('customDate')}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setCustomDate(null)}
+                    hitSlop={8}
+                    style={styles.dateClear}
+                  >
+                    <SymbolView name="xmark.circle.fill" size={16} weight="medium" tintColor={theme.textSecondary} />
+                  </Pressable>
+                </>
+              )}
+              {!customDate && (
+                <SymbolView name="chevron.right" size={10} weight="medium" tintColor={theme.textSecondary + '50'} />
+              )}
+            </View>
+          </Pressable>
+
           {/* Config Panel */}
           {showConfig && (
             <View
@@ -235,9 +302,9 @@ export default function PlanetaryHoursScreen() {
               ]}
             >
               <Text style={[styles.configTitle, { color: theme.textSecondary }]}>
-                {isRTL ? 'الْمَنْطِقَةُ الزَّمَنِيَّة' : 'TIMEZONE \u2022 LOCATION'}
+                {t('timezoneLocation')}
               </Text>
-              <View style={styles.configRow}>
+              <View style={[styles.configRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <View style={styles.configField}>
                   <Text style={[styles.configLabel, { color: theme.textSecondary }]}>TIMEZONE</Text>
                   <View
@@ -253,7 +320,7 @@ export default function PlanetaryHoursScreen() {
                   </View>
                 </View>
               </View>
-              <View style={styles.configRow}>
+              <View style={[styles.configRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <View style={styles.configField}>
                   <Text style={[styles.configLabel, { color: theme.textSecondary }]}>LAT</Text>
                   <Text style={[styles.configValue, { color: theme.text }]}>{activeLat.toFixed(4)}</Text>
@@ -263,11 +330,11 @@ export default function PlanetaryHoursScreen() {
                   <Text style={[styles.configValue, { color: theme.text }]}>{activeLng.toFixed(4)}</Text>
                 </View>
               </View>
-              <View style={styles.sunInfoRow}>
+              <View style={[styles.sunInfoRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <View style={styles.sunInfoItem}>
                   <SymbolView name="sun.max.fill" size={12} weight="medium" tintColor={Colors.gold} />
                   <Text style={[styles.sunInfoText, { color: theme.textSecondary }]}>
-                    {isRTL ? 'شُرُوق ' : '↑ '}{sunriseStr}
+                    {isRTL ? `${t('sunrise')} ` : '↑ '}{sunriseStr}
                   </Text>
                 </View>
                 <Text style={[styles.sunInfoSep, { color: theme.textSecondary }]}>
@@ -276,7 +343,7 @@ export default function PlanetaryHoursScreen() {
                 <View style={styles.sunInfoItem}>
                   <SymbolView name="moon.fill" size={12} weight="medium" tintColor="#9B9BCE" />
                   <Text style={[styles.sunInfoText, { color: theme.textSecondary }]}>
-                    {isRTL ? 'غُرُوب ' : '↓ '}{sunsetStr}
+                    {isRTL ? `${t('sunset')} ` : '↓ '}{sunsetStr}
                   </Text>
                 </View>
               </View>
@@ -298,17 +365,14 @@ export default function PlanetaryHoursScreen() {
                   Shadows.medium,
                 ]}
               >
-                <View style={styles.heroTop}>
+                <View style={[styles.heroTop, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <PlanetIcon planet={currentHour.planet} size={36} />
                   <View style={styles.heroNameArea}>
                     <Text style={[styles.heroPlanetEn, { color: theme.text }]}>
-                      {currentHour.planet.en}
-                    </Text>
-                    <Text style={[styles.heroPlanetAr, { color: currentHour.planet.color }]}>
-                      {currentHour.planet.ar}
+                      {locale === 'ar' ? currentHour.planet.ar : currentHour.planet.en}
                     </Text>
                   </View>
-                  <View style={styles.heroTimeArea}>
+                  <View style={[styles.heroTimeArea, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                     <Text style={[styles.heroTimeBig, { color: theme.text }]}>
                       {formatTimeShort(currentHour.start)}
                     </Text>
@@ -338,7 +402,7 @@ export default function PlanetaryHoursScreen() {
                   />
                 </View>
 
-                <View style={styles.heroMeta}>
+                <View style={[styles.heroMeta, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <View style={styles.heroMetaItem}>
                     <SymbolView
                       name={currentHour.isDay ? 'sun.max.fill' : 'moon.fill'}
@@ -352,19 +416,19 @@ export default function PlanetaryHoursScreen() {
                         { color: currentHour.isDay ? Colors.gold : '#9B9BCE' },
                       ]}
                     >
-                      {currentHour.isDay ? (isRTL ? 'نَهَار' : 'DAY') : (isRTL ? 'لَيْل' : 'NIGHT')}
+                      {currentHour.isDay ? t('daytime') : t('nighttime')}
                     </Text>
                   </View>
                   <View style={[styles.heroMetaDivider, { backgroundColor: theme.border }]} />
                   <View style={styles.heroMetaItem}>
                     <Text style={[styles.heroMetaText, { color: theme.textSecondary }]}>
-                      {isRTL ? 'السَّاعَة' : 'Hour'} {currentHour.index}
+                      {`${t('hour')} ${currentHour.index}`}
                     </Text>
                   </View>
                   <View style={[styles.heroMetaDivider, { backgroundColor: theme.border }]} />
                   <View style={styles.heroMetaItem}>
                     <Text style={[styles.heroMetaText, { color: theme.textSecondary }]}>
-                      {currentHour.planet.symbol} {currentHour.planet.en}
+                      {currentHour.planet.symbol} {locale === 'ar' ? currentHour.planet.ar : currentHour.planet.en}
                     </Text>
                   </View>
                 </View>
@@ -383,11 +447,11 @@ export default function PlanetaryHoursScreen() {
                 },
               ]}
             >
-              <View style={styles.scheduleRow}>
+              <View style={[styles.scheduleRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <View style={styles.scheduleItem}>
                   <SymbolView name="sunrise.fill" size={16} weight="medium" tintColor={Colors.gold} />
                   <Text style={[styles.scheduleLabel, { color: theme.textSecondary }]}>
-                    {isRTL ? 'الشُّرُوق' : 'SUNRISE'}
+                    {t('sunrise')}
                   </Text>
                   <Text style={[styles.scheduleTime, { color: theme.text }]}>{sunriseStr}</Text>
                 </View>
@@ -395,7 +459,7 @@ export default function PlanetaryHoursScreen() {
                 <View style={styles.scheduleItem}>
                   <SymbolView name="sunset.fill" size={16} weight="medium" tintColor="#FF6B8A" />
                   <Text style={[styles.scheduleLabel, { color: theme.textSecondary }]}>
-                    {isRTL ? 'الغُرُوب' : 'SUNSET'}
+                    {t('sunset')}
                   </Text>
                   <Text style={[styles.scheduleTime, { color: theme.text }]}>{sunsetStr}</Text>
                 </View>
@@ -407,9 +471,9 @@ export default function PlanetaryHoursScreen() {
           <View style={styles.timeline}>
             {dayHours.length > 0 && (
               <>
-                <View style={styles.timelineSection}>
+                <View style={[styles.timelineSection, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.timelineSectionText, { color: Colors.gold }]}>
-                    {isRTL ? 'النَّهَار' : 'DAYTIME'}
+                    {t('daytime')}
                   </Text>
                   <View style={[styles.timelineSectionLine, { backgroundColor: Colors.gold + '30' }]} />
                 </View>
@@ -420,6 +484,7 @@ export default function PlanetaryHoursScreen() {
                     isActive={currentHour?.index === h.index}
                     isPast={currentHour ? h.index < currentHour.index : false}
                     theme={theme}
+                    customDate={customDate}
                     onLayout={(y) => { rowRefs.current[h.index] = y; }}
                   />
                 ))}
@@ -428,9 +493,9 @@ export default function PlanetaryHoursScreen() {
 
             {nightHours.length > 0 && (
               <>
-                <View style={styles.timelineSection}>
+                <View style={[styles.timelineSection, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                   <Text style={[styles.timelineSectionText, { color: '#9B9BCE' }]}>
-                    {isRTL ? 'اللَّيْل' : 'NIGHTTIME'}
+                    {t('nighttime')}
                   </Text>
                   <View style={[styles.timelineSectionLine, { backgroundColor: 'rgba(155,155,206,0.3)' }]} />
                 </View>
@@ -441,6 +506,7 @@ export default function PlanetaryHoursScreen() {
                     isActive={currentHour?.index === h.index}
                     isPast={currentHour ? h.index < currentHour.index : false}
                     theme={theme}
+                    customDate={customDate}
                     onLayout={(y) => { rowRefs.current[h.index] = y; }}
                   />
                 ))}
@@ -449,6 +515,13 @@ export default function PlanetaryHoursScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <DateTimePicker
+        visible={showDatePicker}
+        date={customDate ?? new Date()}
+        onChange={(d) => setCustomDate(d)}
+        onClose={() => setShowDatePicker(false)}
+      />
     </View>
   );
 }
@@ -458,16 +531,19 @@ function HourRow({
   isActive,
   isPast,
   theme,
+  customDate,
   onLayout,
 }: {
   hour: PlanetaryHour;
   isActive: boolean;
   isPast: boolean;
   theme: ReturnType<typeof useTheme>;
+  customDate: Date | null;
   onLayout: (y: number) => void;
 }) {
+  const { locale } = useLocale();
   const isDark = theme.background === '#0A1628';
-  const now = Date.now();
+  const now = customDate ? customDate.getTime() : Date.now();
   const elapsed = now - hour.start.getTime();
   const total = hour.end.getTime() - hour.start.getTime();
   const progress = isActive ? Math.min((elapsed / total) * 100, 100) : 0;
@@ -477,6 +553,7 @@ function HourRow({
       onLayout={(e) => onLayout(e.nativeEvent.layout.y)}
       style={[
         styles.hourRow,
+        { flexDirection: locale === 'ar' ? 'row-reverse' : 'row' },
         isActive && {
           backgroundColor: hour.planet.color + '0D',
           borderColor: hour.planet.color + '25',
@@ -510,19 +587,14 @@ function HourRow({
 
       {/* Info */}
       <View style={styles.hourInfo}>
-        <View style={styles.hourNameRow}>
-          <Text
-            style={[
-              styles.hourPlanetEn,
-              { color: theme.text, fontWeight: isActive ? '700' : '500' },
-            ]}
-          >
-            {hour.planet.en}
-          </Text>
-          <Text style={[styles.hourPlanetAr, { color: isActive ? hour.planet.color : theme.textSecondary }]}>
-            {hour.planet.ar}
-          </Text>
-        </View>
+        <Text
+          style={[
+            styles.hourPlanetEn,
+            { color: theme.text, fontWeight: isActive ? '700' : '500' },
+          ]}
+        >
+          {locale === 'ar' ? hour.planet.ar : hour.planet.en}
+        </Text>
       </View>
 
       {/* Active progress bar */}
@@ -573,9 +645,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  // Header
   header: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
@@ -611,7 +681,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  // Scroll
   scroll: {
     flex: 1,
   },
@@ -620,7 +689,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.six + 60,
     gap: Spacing.three,
   },
-  // Location bar
   locBar: {
     borderRadius: 14,
     borderWidth: 1,
@@ -628,7 +696,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   locRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: 6,
   },
@@ -648,7 +715,6 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
   },
-  // Config / Location override
   configCard: {
     borderRadius: 16,
     borderWidth: 1,
@@ -664,7 +730,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   configRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     gap: Spacing.two,
   },
   configField: {
@@ -693,7 +758,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   sunInfoRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingTop: Spacing.one,
@@ -714,7 +778,6 @@ const styles = StyleSheet.create({
     opacity: 0.3,
     fontVariant: ['tabular-nums'],
   },
-  // Hero
   heroOuter: {
     alignItems: 'center',
   },
@@ -734,7 +797,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   heroTop: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: Spacing.three,
   },
@@ -745,13 +807,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-  heroPlanetAr: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 1,
-  },
   heroTimeArea: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: 6,
   },
@@ -774,7 +830,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   heroMeta: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
@@ -793,14 +848,12 @@ const styles = StyleSheet.create({
     width: 1,
     height: 10,
   },
-  // Schedule
   scheduleCard: {
     borderRadius: 16,
     borderWidth: 1,
     padding: Spacing.three,
   },
   scheduleRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
   },
@@ -824,12 +877,10 @@ const styles = StyleSheet.create({
     width: 1,
     height: 32,
   },
-  // Timeline
   timeline: {
     gap: 2,
   },
   timelineSection: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     gap: Spacing.two,
     marginTop: Spacing.three,
@@ -846,9 +897,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
   },
-  // Hour row
   hourRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     alignItems: 'center',
     paddingVertical: Spacing.two + 1,
     paddingHorizontal: Spacing.two,
@@ -879,16 +928,8 @@ const styles = StyleSheet.create({
   hourInfo: {
     flex: 1,
   },
-  hourNameRow: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
-    gap: Spacing.two,
-    alignItems: 'baseline',
-  },
   hourPlanetEn: {
     fontSize: 13,
-  },
-  hourPlanetAr: {
-    fontSize: 10,
   },
   hourActiveRight: {
     flexDirection: 'row',
@@ -909,5 +950,34 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  dateBar: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: Spacing.two + 2,
+    paddingHorizontal: Spacing.three,
+  },
+  dateBarRow: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateBarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  dateBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  dateBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  dateClear: {
+    padding: 4,
   },
 });

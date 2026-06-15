@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  I18nManager,
   Pressable,
   StyleSheet,
   Text,
@@ -15,19 +14,24 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLocale } from '@/hooks/locale-context';
 import { searchQuranByAbjad, type VerseMatch } from '@/hooks/use-quran-search';
 import { loadAllVerses, searchQuranByText } from '@/hooks/use-quran-text-search';
 import { searchNamesByValue, searchNamesByCombination, type NameMatch, type NameCombo } from '@/hooks/use-names-of-allah';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 
-const isRTL = I18nManager.isRTL;
+function toWesternDigits(s: string): string {
+  return s.replace(/[\u0660-\u0669]/g, c => String(c.charCodeAt(0) - 0x0660))
+          .replace(/[\u06F0-\u06F9]/g, c => String(c.charCodeAt(0) - 0x06F0));
+}
 
 type SearchMode = 'value' | 'ayat';
 
 export default function SearchScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t, isRTL } = useLocale();
   const isDark = theme.background === '#0A1628';
   const handleBack = useCallback(() => router.back(), [router]);
 
@@ -54,7 +58,7 @@ export default function SearchScreen() {
     setLoading(true);
     setSearched(true);
     try {
-      const val = Number(q.trim());
+      const val = Number(toWesternDigits(q.trim()));
       if (m === 'value') {
         const [verses, names] = await Promise.all([
           searchQuranByAbjad(val),
@@ -91,7 +95,7 @@ export default function SearchScreen() {
     }
     debounceRef.current = setTimeout(() => {
       runSearch(query, mode);
-    }, mode === 'ayat' ? 100 : 300);
+    }, mode === 'ayat' ? 250 : 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -109,8 +113,7 @@ export default function SearchScreen() {
           <Text style={styles.backBtnArrow}>←</Text>
         </Pressable>
         <SectionHeader
-          titleAr="الْبَحْثُ فِي الْقُرْآنِ"
-          titleEn="QURAN SEARCH"
+          title={t('quranSearchTitle')}
           style={styles.header}
           compact
         />
@@ -135,8 +138,7 @@ export default function SearchScreen() {
               onPress={() => { setMode('value'); setResults([]); setSearched(false); }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.segmentText, { color: theme.text }, mode === 'value' && styles.segmentTextActive]}>بِالْقِيمَة</Text>
-              <Text style={[styles.segmentSub, mode === 'value' && { opacity: 0.5 }]}>VALUE</Text>
+              <Text style={[styles.segmentText, { color: theme.text }, mode === 'value' && styles.segmentTextActive]}>{t('byValue')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -147,8 +149,7 @@ export default function SearchScreen() {
               onPress={() => { setMode('ayat'); setResults([]); setSearched(false); }}
               activeOpacity={0.7}
             >
-              <Text style={[styles.segmentText, { color: theme.text }, mode === 'ayat' && styles.segmentTextActive]}>بِالْآيَة</Text>
-              <Text style={[styles.segmentSub, mode === 'ayat' && { opacity: 0.5 }]}>TEXT</Text>
+              <Text style={[styles.segmentText, { color: theme.text }, mode === 'ayat' && styles.segmentTextActive]}>{t('byText')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -168,28 +169,26 @@ export default function SearchScreen() {
         {loading && (
           <View style={styles.statusState}>
             <ActivityIndicator size="small" color={Colors.accent} />
-            <Text style={[styles.statusText, { color: theme.textSecondary }]}>جَارِي الْبَحْثُ ...</Text>
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>{t('searching')}</Text>
           </View>
         )}
 
         {!loading && searched && results.length === 0 && namesResults.length === 0 && !nameComboResult && (
           <View style={styles.statusState}>
             <Text style={styles.statusIcon}>﴿</Text>
-            <Text style={[styles.statusText, { color: theme.textSecondary }]}>لَا نَتَائِج</Text>
-            <Text style={styles.statusSub}>No results</Text>
+            <Text style={[styles.statusText, { color: theme.textSecondary }]}>{t('noResultsFound')}</Text>
           </View>
         )}
 
         {!loading && mode === 'value' && namesResults.length > 0 && (
           <Card variant="elevated" style={styles.resultsCard}>
-            <Text style={styles.resultsTitleAr}>أَسْمَاءُ اللَّهِ الْحُسْنَى</Text>
-            <Text style={styles.resultsTitleEn}>NAMES OF ALLAH • {namesResults.length}</Text>
+            <Text style={styles.resultsTitle}>{t('namesOfAllah')} • {namesResults.length}</Text>
             <View style={styles.namesGrid}>
               {namesResults.map((n, i) => (
-                <View key={n.name} style={[styles.nameItem, i > 0 && styles.itemBorder]}>
+                <View key={n.name} style={[{ flexDirection: isRTL ? 'row-reverse' : 'row' }, styles.nameItem, i > 0 && styles.itemBorder]}>
                   <Text style={[styles.nameText, { color: theme.text }]}>{n.name}</Text>
                   <View style={styles.nameValueRow}>
-                    <Text style={styles.nameValueLabel}>الْقِيمَة</Text>
+                    <Text style={styles.nameValueLabel}>{t('value')}</Text>
                     <Text style={styles.nameValue}>{n.totalValue}</Text>
                   </View>
                 </View>
@@ -200,18 +199,17 @@ export default function SearchScreen() {
 
         {!loading && nameComboResult && (
           <Card variant="elevated" style={styles.resultsCard}>
-            <Text style={styles.resultsTitleAr}>أَسْمَاءُ اللَّهِ الْحُسْنَى</Text>
-            <Text style={styles.resultsTitleEn}>COMBINATION • {nameComboResult.count} NAMES</Text>
+            <Text style={styles.resultsTitle}>{t('combination')} • {nameComboResult.count} {t('namesShort')}</Text>
             <View style={styles.namesGrid}>
               {nameComboResult.names.map((name, i) => (
-                <View key={name} style={[styles.nameItem, i > 0 && styles.itemBorder]}>
+                <View key={name} style={[{ flexDirection: isRTL ? 'row-reverse' : 'row' }, styles.nameItem, i > 0 && styles.itemBorder]}>
                   <Text style={[styles.nameText, { color: theme.text }]}>{name}</Text>
                   {i < nameComboResult.names.length - 1 && (
                     <Text style={[styles.plusSign, { color: Colors.gold }]}>+</Text>
                   )}
                 </View>
               ))}
-              <View style={[styles.nameItem, styles.itemBorder]}>
+              <View style={[{ flexDirection: isRTL ? 'row-reverse' : 'row' }, styles.nameItem, styles.itemBorder]}>
                 <Text style={[styles.nameText, { color: Colors.gold }]}>المجموع</Text>
                 <Text style={[styles.nameValue, { color: Colors.gold, fontSize: 20 }]}>{nameComboResult.totalValue}</Text>
               </View>
@@ -221,8 +219,7 @@ export default function SearchScreen() {
 
         {!loading && results.length > 0 && (
           <Card variant="glass" style={styles.resultsCard}>
-            <Text style={styles.resultsTitleAr}>الْآيَاتُ الْقُرْآنِيَّة</Text>
-            <Text style={styles.resultsTitleEn}>VERSES • {results.length}</Text>
+            <Text style={styles.resultsTitle}>{t('versesQuran')} • {results.length}</Text>
             <View style={styles.versesList}>
               {results.map((v, i) => (
                 <View key={`${v.surah}-${v.verse}`} style={[styles.verseItem, i > 0 && styles.itemBorder]}>
@@ -307,13 +304,6 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     opacity: 1,
   },
-  segmentSub: {
-    fontSize: 8,
-    letterSpacing: 1.5,
-    opacity: 0.25,
-    color: Colors.accent,
-    marginTop: 2,
-  },
   input: {
     borderRadius: 14,
     paddingHorizontal: Spacing.three,
@@ -335,32 +325,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  statusSub: {
-    fontSize: 9,
-    opacity: 0.3,
-    letterSpacing: 1,
-  },
   resultsCard: {
     padding: Spacing.four,
   },
-  resultsTitleAr: {
+  resultsTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: Colors.gold,
-    textAlign: isRTL ? 'right' : 'left',
-  },
-  resultsTitleEn: {
-    fontSize: 8,
-    letterSpacing: 1.5,
-    opacity: 0.4,
     marginBottom: Spacing.three,
-    textAlign: isRTL ? 'right' : 'left',
   },
   namesGrid: {
     gap: Spacing.two,
   },
   nameItem: {
-    flexDirection: isRTL ? 'row-reverse' : 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,

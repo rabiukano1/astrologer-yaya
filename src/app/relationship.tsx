@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  I18nManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,14 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { useLocale } from '@/hooks/locale-context';
 
 import { Colors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
-
-const isRTL = I18nManager.isRTL;
 
 const abjad: Record<string, number> = {
   ا: 1, أ: 1, إ: 1, آ: 1,
@@ -55,6 +53,7 @@ export default function RelationshipScreen() {
   const router = useRouter();
   const theme = useTheme();
   const isDark = theme.background === '#0A1628';
+  const { t, isRTL } = useLocale();
   const handleBack = useCallback(() => router.back(), [router]);
   const [p1, setP1] = useState('');
   const [p2, setP2] = useState('');
@@ -82,10 +81,7 @@ export default function RelationshipScreen() {
         >
           <Text style={styles.backBtnArrow}>←</Text>
         </Pressable>
-        <SectionHeader
-          titleAr="رَقَمُ الْعَلَاقَة"
-          titleEn="RELATIONSHIP NUMBER"
-        />
+        <SectionHeader title={t('relationshipNumberTitle')} />
       </SafeAreaView>
 
       <KeyboardAwareScrollView
@@ -98,8 +94,7 @@ export default function RelationshipScreen() {
         extraScrollHeight={20}
       >
         <Card variant="glass">
-          <Text style={[styles.label, { color: theme.text }]}>الشَّخْصُ الْأَوَّل</Text>
-          <Text style={[styles.labelEn, { color: theme.textSecondary }]}>Person 1</Text>
+          <Text style={[styles.label, { color: theme.text, textAlign: isRTL ? 'right' : 'left' }]}>{t('person1')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text, marginBottom: Spacing.three }]}
             value={p1}
@@ -110,8 +105,7 @@ export default function RelationshipScreen() {
             autoCorrect={false}
           />
 
-          <Text style={[styles.label, { color: theme.text }]}>الشَّخْصُ الثَّانِي</Text>
-          <Text style={[styles.labelEn, { color: theme.textSecondary }]}>Person 2</Text>
+          <Text style={[styles.label, { color: theme.text, textAlign: isRTL ? 'right' : 'left' }]}>{t('person2')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', color: theme.text }]}
             value={p2}
@@ -123,8 +117,7 @@ export default function RelationshipScreen() {
           />
 
           <Button
-            title="احْسِبْ"
-            subtitle="CALCULATE"
+            title={t('calculate')}
             variant="gold"
             onPress={calc}
             disabled={!p1.trim() || !p2.trim()}
@@ -133,9 +126,8 @@ export default function RelationshipScreen() {
 
           {res !== null && (
             <View style={[styles.resultBox, { backgroundColor: isDark ? 'rgba(255,107,138,0.1)' : 'rgba(255,107,138,0.08)' }]}>
-              <Text style={styles.resLabel}>رَقَمُ الْعَلَاقَة</Text>
+              <Text style={styles.resLabel}>{t('relationshipNumberTitle')}</Text>
               <Text style={[styles.resNum, { color: '#FF6B8A' }]}>{res}</Text>
-              <Text style={styles.resLabelEn}>RELATIONSHIP NUMBER</Text>
             </View>
           )}
         </Card>
@@ -191,16 +183,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     fontWeight: '700',
-    textAlign: isRTL ? 'right' : 'left',
-  },
-  labelEn: {
-    fontSize: 9,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginTop: 2,
-    marginBottom: Spacing.two,
-    textAlign: isRTL ? 'right' : 'left',
-    opacity: 0.5,
   },
   input: {
     borderRadius: 14,
@@ -229,11 +211,5 @@ const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: '900',
     marginVertical: Spacing.one,
-  },
-  resLabelEn: {
-    fontSize: 8,
-    letterSpacing: 0.5,
-    opacity: 0.4,
-    marginTop: 1,
   },
 });

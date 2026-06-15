@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useColorScheme } from 'react-native';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -26,6 +27,27 @@ function saveTheme(mode: ThemeMode) {
   } catch {}
 }
 
+function useSystemTheme(): 'light' | 'dark' {
+  const scheme = useColorScheme();
+  const [sys, setSys] = useState<'light' | 'dark'>(
+    scheme === 'dark' ? 'dark' : 'light',
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSys(e.matches ? 'dark' : 'light');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
+    if (scheme === 'dark' || scheme === 'light') setSys(scheme);
+  }, [scheme]);
+
+  return sys;
+}
+
 const ThemeContext = createContext<ThemeContextValue>({
   userTheme: 'system',
   setUserTheme: () => {},
@@ -34,13 +56,15 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [userTheme, setUserTheme] = useState<ThemeMode>(loadSavedTheme);
+  const systemTheme = useSystemTheme();
 
   const handleSetTheme = (mode: ThemeMode) => {
     setUserTheme(mode);
     saveTheme(mode);
   };
 
-  const resolvedTheme = userTheme === 'system' ? 'dark' : userTheme;
+  const resolvedTheme: 'light' | 'dark' =
+    userTheme === 'system' ? systemTheme : userTheme;
 
   return (
     <ThemeContext.Provider value={{ userTheme, setUserTheme: handleSetTheme, resolvedTheme }}>

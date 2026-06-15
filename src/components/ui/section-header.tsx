@@ -3,13 +3,12 @@ import { useTheme } from '@/hooks/use-theme';
 import { Colors, Spacing } from '@/constants/theme';
 
 interface SectionHeaderProps {
-  titleAr: string;
-  titleEn: string;
+  title: string;
   style?: ViewStyle;
   compact?: boolean;
 }
 
-export function SectionHeader({ titleAr, titleEn, style, compact }: SectionHeaderProps) {
+export function SectionHeader({ title, style, compact }: SectionHeaderProps) {
   const theme = useTheme();
 
   return (
@@ -19,9 +18,8 @@ export function SectionHeader({ titleAr, titleEn, style, compact }: SectionHeade
         <Text style={[styles.ornament, { color: Colors.accent }]}>﴿</Text>
         <View style={[styles.line, { backgroundColor: Colors.accent }]} />
       </View>
-      <Text style={[styles.titleAr, compact && styles.titleCompact, { color: theme.text }]}>{titleAr}</Text>
+      <Text style={[styles.title, compact && styles.titleCompact, { color: theme.text }]}>{title}</Text>
       <View style={[styles.underline, { backgroundColor: Colors.gold }]} />
-      <Text style={[styles.titleEn, compact && styles.titleSubCompact, { color: theme.textSecondary }]}>{titleEn}</Text>
     </View>
   );
 }
@@ -48,7 +46,7 @@ const styles = StyleSheet.create({
   ornament: {
     fontSize: 14,
   },
-  titleAr: {
+  title: {
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
@@ -62,17 +60,5 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     marginTop: Spacing.one,
-  },
-  titleEn: {
-    fontSize: 9,
-    letterSpacing: 2,
-    marginTop: Spacing.one,
-    textAlign: 'center',
-    opacity: 0.5,
-    textTransform: 'uppercase',
-  },
-  titleSubCompact: {
-    fontSize: 8,
-    letterSpacing: 1.5,
   },
 });
